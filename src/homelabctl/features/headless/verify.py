@@ -8,6 +8,7 @@ from homelabctl.core.models import (
 )
 from homelabctl.core.verifier import verify_module
 from homelabctl.features.headless.inspect import (
+    actual_for_settings,
     desired_state,
 )
 from homelabctl.features.headless.schema import (
@@ -21,5 +22,8 @@ def verify(
 ) -> VerificationReport:
     return verify_module(
         desired_state(settings),
-        actual,
+        actual_for_settings(
+            actual,
+            settings,
+        ),
     )
