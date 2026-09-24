@@ -1,0 +1,11 @@
+enabled = false
+
+warning_percent = 30
+low_percent = 20
+critical_percent = 15
+
+suspend_cycle_seconds = 300
+shutdown_rtc_seconds = 900
+
+suspend_on_low = true
+shutdown_on_critical = true

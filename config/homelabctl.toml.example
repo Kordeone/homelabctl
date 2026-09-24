@@ -1,0 +1,11 @@
+[backend]
+socket_path = "/run/homelabd/homelabd.sock"
+connect_timeout_seconds = 2.0
+request_timeout_seconds = 5.0
+
+[audit]
+enabled = true
+path = "~/.local/state/homelabctl/audit.jsonl"
+
+[ui]
+refresh_interval_seconds = 2.0

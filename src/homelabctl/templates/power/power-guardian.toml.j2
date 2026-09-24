@@ -1,0 +1,13 @@
+# Managed by HomeLabCTL
+
+enabled = {{ "true" if enabled else "false" }}
+
+warning_percent = {{ warning_percent }}
+low_percent = {{ low_percent }}
+critical_percent = {{ critical_percent }}
+
+suspend_cycle_seconds = {{ suspend_cycle_seconds }}
+shutdown_rtc_seconds = {{ shutdown_rtc_seconds }}
+
+suspend_on_low = {{ "true" if suspend_on_low else "false" }}
+shutdown_on_critical = {{ "true" if shutdown_on_critical else "false" }}

@@ -1,0 +1,24 @@
+# Managed by HomeLabCTL
+# Do not edit manually.
+
+Port {{ port }}
+
+PermitRootLogin {{ permit_root_login }}
+PubkeyAuthentication {{ pubkey_authentication }}
+PasswordAuthentication {{ password_authentication }}
+KbdInteractiveAuthentication {{ kbd_interactive_authentication }}
+
+{% if allow_users %}
+AllowUsers {{ allow_users | join(" ") }}
+{% endif %}
+{% if allow_groups %}
+AllowGroups {{ allow_groups | join(" ") }}
+{% endif %}
+
+MaxAuthTries {{ max_auth_tries }}
+
+ClientAliveInterval {{ client_alive_interval }}
+ClientAliveCountMax {{ client_alive_count_max }}
+
+X11Forwarding {{ x11_forwarding }}
+AllowTcpForwarding {{ allow_tcp_forwarding }}

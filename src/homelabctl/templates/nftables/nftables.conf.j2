@@ -1,0 +1,39 @@
+#!/usr/sbin/nft -f
+
+# Managed by HomeLabCTL
+
+flush ruleset
+
+table inet filter {
+
+    chain input {
+        type filter hook input priority filter; policy drop;
+
+        iifname "lo" accept
+
+        ct state invalid drop
+        ct state established,related accept
+
+        iifname "{{ management_interface }}" ip saddr {{ management_ipv4_cidr }} tcp dport {{ ssh_port }} ct state new accept
+
+{% if allow_dhcp_client %}
+        iifname "{{ management_interface }}" udp sport 67 udp dport 68 accept
+{% endif %}
+
+{% if allow_ipv4_icmp %}
+        meta l4proto icmp accept
+{% endif %}
+
+{% if allow_ipv6_icmp %}
+        meta l4proto ipv6-icmp accept
+{% endif %}
+    }
+
+    chain forward {
+        type filter hook forward priority filter; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority filter; policy accept;
+    }
+}

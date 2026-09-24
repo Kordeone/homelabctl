@@ -1,0 +1,76 @@
+#!/usr/bin/env python3
+
+from pathlib import Path
+import subprocess
+import sys
+
+
+AC_PROFILE = "{{ ac_profile }}"
+BATTERY_PROFILE = "{{ battery_profile }}"
+
+
+def find_ac_state():
+    root = Path("/sys/class/power_supply")
+
+    if not root.exists():
+        return None
+
+    for supply in root.iterdir():
+        try:
+            supply_type = (
+                supply / "type"
+            ).read_text().strip()
+        except OSError:
+            continue
+
+        if supply_type not in {
+            "Mains",
+            "USB",
+            "USB_C",
+        }:
+            continue
+
+        try:
+            online = int(
+                (supply / "online")
+                .read_text()
+                .strip()
+            )
+        except (OSError, ValueError):
+            continue
+
+        return bool(online)
+
+    return None
+
+
+def main():
+    ac_online = find_ac_state()
+
+    if ac_online is None:
+        print(
+            "Unable to determine AC state.",
+            file=sys.stderr,
+        )
+        return 1
+
+    profile = (
+        AC_PROFILE
+        if ac_online
+        else BATTERY_PROFILE
+    )
+
+    result = subprocess.run(
+        [
+            "/usr/bin/powerprofilesctl",
+            "set",
+            profile,
+        ],
+        check=False,
+    )
+
+    return result.returncode
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

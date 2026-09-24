@@ -1,0 +1,7 @@
+[Unit]
+Description=HomeLab Power Guardian
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/homelab-power-guardian --config /etc/homelabctl/power-guardian.toml
