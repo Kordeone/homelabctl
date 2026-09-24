@@ -236,6 +236,15 @@ def validate_run_command(
             return
 
     elif feature == "headless":
+        if command == (
+            "/usr/bin/systemctl",
+            "kill",
+            "--kill-whom=main",
+            "--signal=HUP",
+            "systemd-logind.service",
+        ):
+            return
+
         validate_gsettings_command(
             argv
         )
@@ -308,7 +317,17 @@ def validate_gsettings_command(
         )
 
     if key.endswith("-type"):
-        if value != "nothing":
+        allowed_actions = {
+            "blank",
+            "suspend",
+            "shutdown",
+            "hibernate",
+            "interactive",
+            "nothing",
+            "logout",
+        }
+
+        if value not in allowed_actions:
             raise PermissionError(
                 "Unsupported power action."
             )

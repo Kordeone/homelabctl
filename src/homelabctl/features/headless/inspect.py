@@ -37,9 +37,21 @@ def desired_state(
                 key="lid_switch_docked",
                 value=settings.handle_lid_switch_docked,
             ),
+            "power_key": DesiredSetting(
+                key="power_key",
+                value=settings.handle_power_key,
+            ),
+            "power_key_long_press": DesiredSetting(
+                key="power_key_long_press",
+                value=settings.handle_power_key_long_press,
+            ),
             "idle_action": DesiredSetting(
                 key="idle_action",
                 value=settings.idle_action,
+            ),
+            "idle_action_sec": DesiredSetting(
+                key="idle_action_sec",
+                value=settings.idle_action_sec,
             ),
             "desktop_user": DesiredSetting(
                 key="desktop_user",
@@ -49,6 +61,11 @@ def desired_state(
                 key="user_sleep_inactive_ac_type",
                 value=settings.user_ac_action,
             ),
+            "user_sleep_inactive_ac_timeout":
+                DesiredSetting(
+                    key="user_sleep_inactive_ac_timeout",
+                    value=settings.user_ac_timeout,
+                ),
             "user_sleep_inactive_battery_type":
                 DesiredSetting(
                     key=(
@@ -56,6 +73,14 @@ def desired_state(
                         "battery_type"
                     ),
                     value=settings.user_battery_action,
+                ),
+            "user_sleep_inactive_battery_timeout":
+                DesiredSetting(
+                    key=(
+                        "user_sleep_inactive_"
+                        "battery_timeout"
+                    ),
+                    value=settings.user_battery_timeout,
                 ),
             "gdm_sleep_inactive_ac_type": DesiredSetting(
                 key="gdm_sleep_inactive_ac_type",
@@ -131,37 +156,31 @@ def actual_for_settings(
         source="desktop_users",
     )
 
-    values[
-        "user_sleep_inactive_ac_type"
-    ] = StateValue(
-        key="user_sleep_inactive_ac_type",
-        value=(
-            selected.get(
-                "sleep_inactive_ac_type"
-            )
-            if selected is not None
-            else None
-        ),
-        source=(
-            f"desktop_users.{settings.desktop_user}"
-        ),
-    )
+    mappings = {
+        "user_sleep_inactive_ac_type":
+            "sleep_inactive_ac_type",
+        "user_sleep_inactive_ac_timeout":
+            "sleep_inactive_ac_timeout",
+        "user_sleep_inactive_battery_type":
+            "sleep_inactive_battery_type",
+        "user_sleep_inactive_battery_timeout":
+            "sleep_inactive_battery_timeout",
+    }
 
-    values[
-        "user_sleep_inactive_battery_type"
-    ] = StateValue(
-        key="user_sleep_inactive_battery_type",
-        value=(
-            selected.get(
-                "sleep_inactive_battery_type"
-            )
-            if selected is not None
-            else None
-        ),
-        source=(
-            f"desktop_users.{settings.desktop_user}"
-        ),
-    )
+    for output_key, source_key in mappings.items():
+        values[output_key] = StateValue(
+            key=output_key,
+            value=(
+                selected.get(
+                    source_key
+                )
+                if selected is not None
+                else None
+            ),
+            source=(
+                f"desktop_users.{settings.desktop_user}"
+            ),
+        )
 
     return ModuleActualState(
         module=actual.module,

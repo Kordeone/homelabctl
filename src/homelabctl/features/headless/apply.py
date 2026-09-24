@@ -73,8 +73,18 @@ def build_apply_transaction(
             key="sleep-inactive-ac-type",
             value=settings.user_ac_action,
             description=(
-                "Disable AC idle suspend for "
-                "the desktop user."
+                "Set desktop-user AC idle action."
+            ),
+        ),
+
+        _gsettings_action(
+            user=settings.desktop_user,
+            key="sleep-inactive-ac-timeout",
+            value=str(
+                settings.user_ac_timeout
+            ),
+            description=(
+                "Set desktop-user AC idle timeout."
             ),
         ),
 
@@ -83,8 +93,18 @@ def build_apply_transaction(
             key="sleep-inactive-battery-type",
             value=settings.user_battery_action,
             description=(
-                "Disable battery idle suspend for "
-                "the desktop user."
+                "Set desktop-user battery idle action."
+            ),
+        ),
+
+        _gsettings_action(
+            user=settings.desktop_user,
+            key="sleep-inactive-battery-timeout",
+            value=str(
+                settings.user_battery_timeout
+            ),
+            description=(
+                "Set desktop-user battery idle timeout."
             ),
         ),
 
@@ -93,14 +113,16 @@ def build_apply_transaction(
             key="sleep-inactive-ac-type",
             value=settings.gdm_ac_action,
             description=(
-                "Disable GDM AC idle suspend."
+                "Set GDM AC idle action."
             ),
         ),
 
         _gsettings_action(
             user="Debian-gdm",
             key="sleep-inactive-ac-timeout",
-            value=str(settings.gdm_ac_timeout),
+            value=str(
+                settings.gdm_ac_timeout
+            ),
             description=(
                 "Set GDM AC idle timeout."
             ),
@@ -111,7 +133,7 @@ def build_apply_transaction(
             key="sleep-inactive-battery-type",
             value=settings.gdm_battery_action,
             description=(
-                "Disable GDM battery idle suspend."
+                "Set GDM battery idle action."
             ),
         ),
 
@@ -124,6 +146,22 @@ def build_apply_transaction(
             description=(
                 "Set GDM battery idle timeout."
             ),
+        ),
+
+        ApplyAction(
+            action_type=ActionType.RUN_COMMAND,
+            description=(
+                "Reload systemd-logind configuration "
+                "in place."
+            ),
+            argv=[
+                "/usr/bin/systemctl",
+                "kill",
+                "--kill-whom=main",
+                "--signal=HUP",
+                "systemd-logind.service",
+            ],
+            backup=False,
         ),
     ]
 

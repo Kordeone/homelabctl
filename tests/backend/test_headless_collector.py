@@ -206,3 +206,91 @@ def test_gsettings_read_does_not_switch_uid(
             "/usr/bin/gsettings"
             in command
         )
+
+
+def test_logind_duration_conversion():
+    collector = HeadlessCollector()
+
+    assert collector._duration_seconds(
+        "30min",
+        default=1,
+    ) == 1800
+
+    assert collector._duration_seconds(
+        "2h",
+        default=1,
+    ) == 7200
+
+    assert collector._duration_seconds(
+        "45s",
+        default=1,
+    ) == 45
+
+    assert collector._duration_seconds(
+        None,
+        default=1800,
+    ) == 1800
+
+
+def test_status_accepts_noncanonical_but_readable_policy():
+    from homelabctl.core.models import Status
+
+    collector = HeadlessCollector()
+
+    values = {
+        "lid_switch": "suspend",
+        "lid_switch_external_power": "ignore",
+        "lid_switch_docked": "lock",
+        "power_key": "lock",
+        "power_key_long_press": "poweroff",
+        "idle_action": "suspend",
+        "idle_action_sec": 600,
+        "gdm_sleep_inactive_ac_type": "suspend",
+        "gdm_sleep_inactive_ac_timeout": 900,
+        "gdm_sleep_inactive_battery_type": "nothing",
+        "gdm_sleep_inactive_battery_timeout": 0,
+        "desktop_users": {
+            "operator": {
+                "sleep_inactive_ac_type": "nothing",
+                "sleep_inactive_ac_timeout": 900,
+                "sleep_inactive_battery_type": "hibernate",
+                "sleep_inactive_battery_timeout": 600,
+            },
+        },
+    }
+
+    assert collector._status(
+        values
+    ) == Status.PASS
+
+
+def test_status_warns_when_extended_state_is_unreadable():
+    from homelabctl.core.models import Status
+
+    collector = HeadlessCollector()
+
+    values = {
+        "lid_switch": "ignore",
+        "lid_switch_external_power": "ignore",
+        "lid_switch_docked": "ignore",
+        "power_key": None,
+        "power_key_long_press": "ignore",
+        "idle_action": "ignore",
+        "idle_action_sec": 1800,
+        "gdm_sleep_inactive_ac_type": "nothing",
+        "gdm_sleep_inactive_ac_timeout": 0,
+        "gdm_sleep_inactive_battery_type": "nothing",
+        "gdm_sleep_inactive_battery_timeout": 0,
+        "desktop_users": {
+            "operator": {
+                "sleep_inactive_ac_type": "nothing",
+                "sleep_inactive_ac_timeout": 900,
+                "sleep_inactive_battery_type": "nothing",
+                "sleep_inactive_battery_timeout": 900,
+            },
+        },
+    }
+
+    assert collector._status(
+        values
+    ) == Status.WARNING

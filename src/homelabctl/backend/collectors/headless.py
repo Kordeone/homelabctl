@@ -40,8 +40,22 @@ class HeadlessCollector:
             "lid_switch_docked": logind.get(
                 "HandleLidSwitchDocked"
             ),
+            "power_key": logind.get(
+                "HandlePowerKey",
+                "poweroff",
+            ),
+            "power_key_long_press": logind.get(
+                "HandlePowerKeyLongPress",
+                "ignore",
+            ),
             "idle_action": logind.get(
                 "IdleAction"
+            ),
+            "idle_action_sec": self._duration_seconds(
+                logind.get(
+                    "IdleActionSec"
+                ),
+                default=1800,
             ),
         }
 
@@ -106,6 +120,51 @@ class HeadlessCollector:
 
         return sorted(
             set(usernames)
+        )
+
+    @staticmethod
+    def _duration_seconds(
+        value: object,
+        *,
+        default: int,
+    ) -> int:
+        if value is None:
+            return default
+
+        raw = str(
+            value
+        ).strip().lower()
+
+        match = re.fullmatch(
+            r"([0-9]+(?:\\.[0-9]+)?)"
+            r"(us|ms|s|min|h|d|w)?",
+            raw,
+        )
+
+        if match is None:
+            return default
+
+        amount = float(
+            match.group(1)
+        )
+
+        unit = (
+            match.group(2)
+            or "s"
+        )
+
+        multiplier = {
+            "us": 0.000001,
+            "ms": 0.001,
+            "s": 1,
+            "min": 60,
+            "h": 3600,
+            "d": 86400,
+            "w": 604800,
+        }[unit]
+
+        return int(
+            amount * multiplier
         )
 
     def _logind_config(self) -> dict[str, str]:
@@ -245,17 +304,56 @@ class HeadlessCollector:
         self,
         values: dict[str, object],
     ) -> Status:
-        expected = {
-            "lid_switch": "ignore",
-            "lid_switch_external_power": "ignore",
-            "lid_switch_docked": "ignore",
-            "idle_action": "ignore",
-            "gdm_sleep_inactive_ac_type": "nothing",
-            "gdm_sleep_inactive_battery_type": "nothing",
-        }
+        """Report collection health, not desired-policy compliance."""
 
-        for key, expected_value in expected.items():
-            if values.get(key) != expected_value:
+        required = (
+            "lid_switch",
+            "lid_switch_external_power",
+            "lid_switch_docked",
+            "power_key",
+            "power_key_long_press",
+            "idle_action",
+            "idle_action_sec",
+            "gdm_sleep_inactive_ac_type",
+            "gdm_sleep_inactive_ac_timeout",
+            "gdm_sleep_inactive_battery_type",
+            "gdm_sleep_inactive_battery_timeout",
+        )
+
+        for key in required:
+            if values.get(
+                key
+            ) is None:
                 return Status.WARNING
+
+        desktop_users = values.get(
+            "desktop_users"
+        )
+
+        if not isinstance(
+            desktop_users,
+            dict,
+        ) or not desktop_users:
+            return Status.WARNING
+
+        required_user_keys = (
+            "sleep_inactive_ac_type",
+            "sleep_inactive_ac_timeout",
+            "sleep_inactive_battery_type",
+            "sleep_inactive_battery_timeout",
+        )
+
+        for settings in desktop_users.values():
+            if not isinstance(
+                settings,
+                dict,
+            ):
+                return Status.WARNING
+
+            for key in required_user_keys:
+                if settings.get(
+                    key
+                ) is None:
+                    return Status.WARNING
 
         return Status.PASS

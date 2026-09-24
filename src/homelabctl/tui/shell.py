@@ -39,6 +39,7 @@ from homelabctl.tui.navigation import (
     NavigableView,
     SIDEBAR_TARGET,
 )
+from homelabctl.tui.screens.headless import HeadlessView
 from homelabctl.tui.screens.ssh import SSHView
 from homelabctl.tui.widgets.feature_row import (
     FeatureRow,
@@ -67,6 +68,7 @@ FEATURE_KEYS = tuple(
 IMPLEMENTED_FEATURES = {
     "dashboard",
     "ssh",
+    "headless",
 }
 
 
@@ -356,6 +358,9 @@ class ControlCenterScreen(Screen):
 
         elif feature_key == "ssh":
             view = SSHView()
+
+        elif feature_key == "headless":
+            view = HeadlessView()
 
         else:
             return
@@ -803,22 +808,51 @@ class ControlCenterScreen(Screen):
             enabled=ssh_detected,
         )
 
+        # Headless & Power
+        headless = modules.get(
+            "headless"
+        )
+
+        power = modules.get(
+            "power"
+        )
+
+        headless_available = (
+            isinstance(
+                headless,
+                dict,
+            )
+            and isinstance(
+                power,
+                dict,
+            )
+        )
+
+        headless_status = "--"
+
+        if headless_available:
+            raw_status = str(
+                headless.get(
+                    "status",
+                    "unknown",
+                )
+            ).upper()
+
+            headless_status = (
+                "PASS"
+                if raw_status == "PASS"
+                else raw_status
+            )
+
+        self._set_feature(
+            "headless",
+            "Headless & Power",
+            headless_status,
+            enabled=headless_available,
+        )
+
         # Detection-only features
         availability = {
-            "headless": (
-                isinstance(
-                    modules.get(
-                        "headless"
-                    ),
-                    dict,
-                )
-                and isinstance(
-                    modules.get(
-                        "power"
-                    ),
-                    dict,
-                )
-            ),
             "firewall": isinstance(
                 modules.get(
                     "firewall"
@@ -839,14 +873,12 @@ class ControlCenterScreen(Screen):
         }
 
         titles = {
-            "headless": "Headless & Power",
             "firewall": "Firewall",
             "gateway": "Gateway / Wi-Fi",
             "storage": "Storage / NAS",
         }
 
         for key in (
-            "headless",
             "firewall",
             "gateway",
             "storage",

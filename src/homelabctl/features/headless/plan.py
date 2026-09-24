@@ -39,8 +39,17 @@ def render_logind_config(
         handle_lid_switch_docked=(
             settings.handle_lid_switch_docked
         ),
+        handle_power_key=(
+            settings.handle_power_key
+        ),
+        handle_power_key_long_press=(
+            settings.handle_power_key_long_press
+        ),
         idle_action=(
             settings.idle_action
+        ),
+        idle_action_sec=(
+            settings.idle_action_sec
         ),
     )
 
@@ -56,8 +65,8 @@ def build_headless_plan(
         feature="headless",
         title="Configure headless operation",
         summary=(
-            "Configure lid and idle behavior "
-            "for unattended server operation."
+            "Configure lid, power-button, idle, "
+            "desktop-session, and login-screen behavior."
         ),
         risk=RiskLevel.MEDIUM,
         steps=[
@@ -78,8 +87,8 @@ def build_headless_plan(
             make_step(
                 step_id="configure-user-power",
                 description=(
-                    "Disable desktop-user "
-                    "idle suspend."
+                    "Configure desktop-user "
+                    "idle power policy."
                 ),
                 kind=ChangeKind.RUN_COMMAND,
                 requires_root=True,
@@ -88,19 +97,34 @@ def build_headless_plan(
             make_step(
                 step_id="configure-gdm-power",
                 description=(
-                    "Disable GDM login-screen "
-                    "idle suspend."
+                    "Configure GDM login-screen "
+                    "idle power policy."
                 ),
                 kind=ChangeKind.RUN_COMMAND,
                 requires_root=True,
                 reversible=True,
             ),
+            make_step(
+                step_id="reload-logind",
+                description=(
+                    "Reload systemd-logind configuration "
+                    "without restarting the service."
+                ),
+                kind=ChangeKind.RUN_COMMAND,
+                requires_root=True,
+                reversible=True,
+                command_preview=(
+                    "systemctl kill --kill-whom=main "
+                    "--signal=HUP systemd-logind.service"
+                ),
+            ),
         ],
         warnings=[
             (
-                "The laptop will remain awake "
-                "when the lid is closed."
+                "Lid, power-button, and idle actions can "
+                "change machine availability. Review the "
+                "preview before applying."
             )
         ],
-        requires_reboot=True,
+        requires_reboot=False,
     )

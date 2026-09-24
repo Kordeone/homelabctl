@@ -2346,3 +2346,426 @@ ControlCenterScreen.tiny-ui #ssh-verification-panel {
     height: 3;
     margin-top: 1;
 }
+
+
+/* =========================================================
+   HEADLESS & POWER VIEW
+   ========================================================= */
+
+#headless-view,
+#headless-content {
+    width: 100%;
+    height: 100%;
+}
+
+#headless-content {
+    background: #0b0e10;
+}
+
+#headless-feature-header {
+    width: 100%;
+    height: 5;
+    margin-bottom: 0;
+    border-bottom: solid #23748b;
+    align: left middle;
+}
+
+#headless-feature-heading {
+    width: 1fr;
+    height: 100%;
+}
+
+#headless-title {
+    height: 2;
+    color: #20d3f3;
+    text-style: bold;
+    content-align: left middle;
+}
+
+#headless-description {
+    height: 2;
+    color: #b6bdc1;
+}
+
+#headless-status {
+    width: 22;
+    height: 3;
+    content-align: center middle;
+    text-style: bold;
+}
+
+#headless-page-selector {
+    width: 100%;
+    height: 4;
+    align: left middle;
+    margin-bottom: 1;
+}
+
+.headless-page-tab {
+    width: 18;
+    min-width: 16;
+    height: 3;
+    margin: 0 1 0 0;
+    border: round #116a86;
+    background: #10191d;
+    color: #b8c2c6;
+    content-align: center middle;
+}
+
+.headless-page-tab.active-page-tab {
+    background: #0b0e10;
+    color: #20d3f3;
+    border: round #116a86;
+    text-style: bold;
+}
+
+.headless-page-tab:focus,
+.headless-page-tab.active-page-tab:focus {
+    background: #075d7c;
+    color: #ffffff;
+    border: round #20d3f3;
+    text-style: bold;
+}
+
+#headless-managed-file-label {
+    width: 1fr;
+    height: 3;
+    color: #7d898e;
+    content-align: right middle;
+}
+
+#headless-page-switcher {
+    width: 100%;
+    height: 1fr;
+}
+
+#headless-page-configure,
+#headless-page-inspect {
+    width: 100%;
+    height: 100%;
+}
+
+.headless-box {
+    border: round #00aee8;
+    background: #101416;
+    padding: 0 1;
+    overflow: hidden hidden;
+}
+
+.headless-box-title {
+    width: 100%;
+    height: 3;
+    color: #20d3f3;
+    text-style: bold;
+    content-align: left middle;
+    border-bottom: solid #23748b;
+}
+
+.headless-box-body {
+    width: 100%;
+    height: 1fr;
+    padding: 1;
+    overflow-y: auto;
+}
+
+#headless-configure-grid {
+    width: 100%;
+    height: 100%;
+    layout: grid;
+    grid-size: 3 1;
+    grid-columns: 0.95fr 1.05fr 1fr;
+    grid-rows: 1fr;
+    grid-gutter: 0 1;
+}
+
+.headless-page-panel {
+    height: 100%;
+}
+
+#headless-config-scroll {
+    width: 100%;
+    height: 1fr;
+    padding: 0 1;
+}
+
+#headless-config-grid {
+    width: 100%;
+    height: auto;
+    layout: grid;
+    grid-size: 2 3;
+    grid-columns: 1fr 1.05fr;
+    grid-rows: 3 3 3;
+    grid-gutter: 0 1;
+}
+
+.headless-field-label {
+    width: 100%;
+    height: 3;
+    content-align: left middle;
+    color: #d8dcde;
+}
+
+#headless-config-panel Input {
+    width: 100%;
+    height: 3;
+    background: #10191d;
+    border: solid #116a86;
+    color: #f1f3f4;
+    padding: 0 1;
+}
+
+#headless-config-panel Input:focus {
+    border: round #20d3f3;
+    background: #10232b;
+}
+
+#headless-fixed-profile {
+    width: 100%;
+    height: auto;
+    margin-top: 1;
+    padding: 1;
+    border-top: solid #23748b;
+}
+
+#headless-actions-grid {
+    width: 100%;
+    height: 7;
+    layout: grid;
+    grid-size: 2 2;
+    grid-columns: 1fr 1fr;
+    grid-rows: 3 3;
+    grid-gutter: 1 1;
+    margin-top: 1;
+}
+
+#headless-actions-grid Button {
+    width: 100%;
+    height: 3;
+    margin: 0;
+    color: #d9dde0;
+    background: #10191d;
+    border: round #116a86;
+}
+
+#headless-actions-grid Button:hover {
+    color: #ffffff;
+    background: #123441;
+    border: round #20aedd;
+}
+
+#headless-actions-grid Button:focus {
+    color: #ffffff;
+    background: #075d7c;
+    border: round #20d3f3;
+}
+
+#headless-actions-grid Button:disabled {
+    color: #64696c;
+    background: #17191a;
+    border: round #303537;
+}
+
+#headless-reset {
+    color: #101010;
+    background: #e1aa13;
+    border: round #ffd45d;
+}
+
+#headless-reset:focus {
+    color: #000000;
+    background: #ffc21c;
+    border: round #fff0a5;
+}
+
+.headless-preview-body {
+    width: 100%;
+    height: 1fr;
+    margin-top: 1;
+    padding: 1 0;
+    overflow-y: auto;
+    border-top: solid #23748b;
+}
+
+#headless-inspect-grid {
+    width: 100%;
+    height: 100%;
+    layout: grid;
+    grid-size: 2 1;
+    grid-columns: 1.35fr 0.85fr;
+    grid-rows: 1fr;
+    grid-gutter: 0 1;
+}
+
+#headless-verification-panel,
+#headless-power-panel {
+    height: 100%;
+}
+
+ControlCenterScreen.compact-ui #headless-description,
+ControlCenterScreen.tiny-ui #headless-description {
+    display: none;
+}
+
+ControlCenterScreen.compact-ui #headless-feature-header,
+ControlCenterScreen.tiny-ui #headless-feature-header {
+    height: 3;
+}
+
+ControlCenterScreen.compact-ui #headless-title,
+ControlCenterScreen.tiny-ui #headless-title {
+    height: 3;
+}
+
+ControlCenterScreen.tiny-ui #headless-status {
+    width: 16;
+}
+
+ControlCenterScreen.tiny-ui #headless-managed-file-label {
+    display: none;
+}
+
+ControlCenterScreen.compact-ui #headless-configure-grid,
+ControlCenterScreen.tiny-ui #headless-configure-grid {
+    height: auto;
+    grid-size: 1 3;
+    grid-columns: 1fr;
+    grid-rows: auto auto auto;
+    grid-gutter: 1 0;
+}
+
+ControlCenterScreen.compact-ui .headless-page-panel,
+ControlCenterScreen.tiny-ui .headless-page-panel {
+    height: auto;
+    min-height: 14;
+}
+
+ControlCenterScreen.compact-ui #headless-config-panel,
+ControlCenterScreen.tiny-ui #headless-config-panel {
+    min-height: 24;
+}
+
+ControlCenterScreen.compact-ui #headless-inspect-grid,
+ControlCenterScreen.tiny-ui #headless-inspect-grid {
+    height: auto;
+    grid-size: 1 2;
+    grid-columns: 1fr;
+    grid-rows: auto auto;
+    grid-gutter: 1 0;
+}
+
+ControlCenterScreen.compact-ui #headless-verification-panel,
+ControlCenterScreen.compact-ui #headless-power-panel,
+ControlCenterScreen.tiny-ui #headless-verification-panel,
+ControlCenterScreen.tiny-ui #headless-power-panel {
+    height: auto;
+    min-height: 14;
+}
+
+ControlCenterScreen.compact-ui #headless-page-configure,
+ControlCenterScreen.compact-ui #headless-page-inspect,
+ControlCenterScreen.tiny-ui #headless-page-configure,
+ControlCenterScreen.tiny-ui #headless-page-inspect {
+    overflow-y: auto;
+}
+
+/* === END HEADLESS & POWER VIEW === */
+
+
+/* =========================================================
+   HEADLESS CONFIGURABLE POWER POLICY — FINAL OVERRIDES
+   ========================================================= */
+
+.headless-section-title {
+    width: 100%;
+    height: 3;
+    margin-top: 1;
+    color: #20d3f3;
+    text-style: bold;
+    content-align: left middle;
+    border-bottom: solid #185565;
+}
+
+#headless-system-grid,
+#headless-desktop-grid,
+#headless-gdm-grid {
+    width: 100%;
+    height: auto;
+    layout: grid;
+    grid-size: 2;
+    grid-columns: 1fr 1.15fr;
+    grid-rows: auto;
+    grid-gutter: 0 1;
+    margin-top: 1;
+}
+
+#headless-config-panel .headless-field-control {
+    width: 100%;
+}
+
+#headless-config-panel SpaceSelect {
+    width: 100%;
+    height: 3;
+}
+
+#headless-config-panel Input {
+    width: 100%;
+    height: 3;
+}
+
+Button#headless-preset {
+    width: 100%;
+    height: 3;
+    margin-top: 1;
+    color: #ffffff;
+    background: #13323b;
+    border: round #20a4c6;
+    text-style: bold;
+}
+
+Button#headless-preset:hover {
+    background: #174856;
+    border: round #49ddff;
+}
+
+Button#headless-preset:focus {
+    background: #075d7c;
+    border: round #7beaff;
+}
+
+ControlCenterScreen.compact-ui #headless-system-grid,
+ControlCenterScreen.compact-ui #headless-desktop-grid,
+ControlCenterScreen.compact-ui #headless-gdm-grid,
+ControlCenterScreen.tiny-ui #headless-system-grid,
+ControlCenterScreen.tiny-ui #headless-desktop-grid,
+ControlCenterScreen.tiny-ui #headless-gdm-grid {
+    grid-columns: 1fr 1fr;
+}
+
+/* === END HEADLESS CONFIGURABLE POWER POLICY === */
+
+
+/* =========================================================
+   HEADLESS PREVIEW SCROLL REPAIR
+   ========================================================= */
+
+#headless-preview-scroll {
+    width: 100%;
+    height: 1fr;
+    margin-top: 1;
+    border-top: solid #23748b;
+    padding-top: 1;
+    overflow-y: auto;
+}
+
+#headless-preview-content {
+    width: 100%;
+    height: auto;
+    min-height: 1;
+    margin: 0;
+    padding: 0;
+    border: none;
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+/* === END HEADLESS PREVIEW SCROLL REPAIR === */
