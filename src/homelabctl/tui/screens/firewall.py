@@ -185,6 +185,7 @@ class FirewallView(NavigableView):
 
         self._pending_firewall_apply: Any | None = None
         self._pending_firewall_confirmation_id: str | None = None
+        self._pending_firewall_observed = False
 
     def compose(self) -> ComposeResult:
         with Vertical(
@@ -872,6 +873,8 @@ class FirewallView(NavigableView):
             )
             else {}
         )
+
+        self._recover_pending_firewall_state()
 
         if (
             not self._draft_initialized
@@ -2168,6 +2171,75 @@ class FirewallView(NavigableView):
             )
         )
 
+    def _recover_pending_firewall_state(
+        self,
+    ) -> None:
+        """Recover root-owned firewall safety state from the backend."""
+
+        values = self._values()
+
+        if (
+            values.get(
+                "firewall_rollback_state_readable"
+            )
+            is not True
+        ):
+            return
+
+        pending = values.get(
+            "firewall_rollback_pending"
+        )
+
+        transaction_id = values.get(
+            "firewall_rollback_transaction_id"
+        )
+
+        if pending is True:
+            if (
+                not isinstance(
+                    transaction_id,
+                    str,
+                )
+                or len(transaction_id) != 32
+                or any(
+                    character
+                    not in "0123456789abcdef"
+                    for character in transaction_id
+                )
+            ):
+                return
+
+            if (
+                self._pending_firewall_confirmation_id
+                == transaction_id
+                and self._pending_firewall_observed
+            ):
+                return
+
+            self._set_pending_firewall_state(
+                transaction_id,
+                observed=True,
+            )
+
+            return
+
+        if (
+            pending is False
+            and self._pending_firewall_confirmation_id
+            is not None
+            and self._pending_firewall_observed
+        ):
+            self._set_pending_firewall_state(
+                None,
+                message=(
+                    "[green]No firewall rollback "
+                    "is currently pending.[/green]\n\n"
+                    "The backend no longer reports an "
+                    "armed firewall transaction."
+                ),
+            )
+
+
     def _render_runtime_state(
         self,
     ) -> None:
@@ -2202,6 +2274,14 @@ class FirewallView(NavigableView):
                         f"{self._yes_no(values.get('inet_filter_table'))}"
                     ),
                     "",
+                    (
+                        "Rollback pending: "
+                        + self._yes_no(
+                            values.get(
+                                "firewall_rollback_pending"
+                            )
+                        )
+                    ),
                     (
                         "Timed rollback: "
                         f"{FIREWALL_ROLLBACK_TIMEOUT_SECONDS}s"
@@ -2248,10 +2328,24 @@ class FirewallView(NavigableView):
         transaction_id: str | None,
         *,
         message: str | None = None,
+        observed: bool = False,
     ) -> None:
+        previous_transaction_id = (
+            self._pending_firewall_confirmation_id
+        )
+
         self._pending_firewall_confirmation_id = (
             transaction_id
         )
+
+        if transaction_id is None:
+            self._pending_firewall_observed = False
+
+        elif observed:
+            self._pending_firewall_observed = True
+
+        elif transaction_id != previous_transaction_id:
+            self._pending_firewall_observed = False
 
         pending = transaction_id is not None
 

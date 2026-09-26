@@ -6,6 +6,10 @@ import ipaddress
 import re
 import shutil
 
+from homelabctl.apply.firewall_safety import (
+    FIREWALL_ROLLBACK_TIMEOUT_SECONDS,
+    load_pending_firewall_rollback,
+)
 from homelabctl.backend.collectors import CollectorResult
 from homelabctl.core.actual_state import make_actual_state
 from homelabctl.core.models import Status
@@ -312,6 +316,67 @@ def _parse_managed_policy(
     }
 
 
+def _firewall_rollback_safety_state(
+) -> dict[str, object]:
+    """Return minimal read-only rollback state for the frontend."""
+
+    try:
+        pending = (
+            load_pending_firewall_rollback()
+        )
+
+    except (
+        OSError,
+        RuntimeError,
+        ValueError,
+    ):
+        return {
+            "firewall_rollback_state_readable": False,
+            "firewall_rollback_pending": None,
+            "firewall_rollback_transaction_id": None,
+            "firewall_rollback_timeout_seconds": (
+                FIREWALL_ROLLBACK_TIMEOUT_SECONDS
+            ),
+        }
+
+    if pending is None:
+        return {
+            "firewall_rollback_state_readable": True,
+            "firewall_rollback_pending": False,
+            "firewall_rollback_transaction_id": None,
+            "firewall_rollback_timeout_seconds": (
+                FIREWALL_ROLLBACK_TIMEOUT_SECONDS
+            ),
+        }
+
+    transaction_id = pending.get(
+        "transaction_id"
+    )
+
+    if not isinstance(
+        transaction_id,
+        str,
+    ):
+        return {
+            "firewall_rollback_state_readable": False,
+            "firewall_rollback_pending": None,
+            "firewall_rollback_transaction_id": None,
+            "firewall_rollback_timeout_seconds": (
+                FIREWALL_ROLLBACK_TIMEOUT_SECONDS
+            ),
+        }
+
+    return {
+        "firewall_rollback_state_readable": True,
+        "firewall_rollback_pending": True,
+        "firewall_rollback_transaction_id": (
+            transaction_id
+        ),
+        "firewall_rollback_timeout_seconds": (
+            FIREWALL_ROLLBACK_TIMEOUT_SECONDS
+        ),
+    }
+
 class FirewallCollector:
     name = "firewall"
 
@@ -342,6 +407,10 @@ class FirewallCollector:
 
         policy = _parse_managed_policy(
             ruleset
+        )
+
+        rollback_safety = (
+            _firewall_rollback_safety_state()
         )
 
         values = {
@@ -383,6 +452,7 @@ class FirewallCollector:
                 in ruleset
             ),
             **policy,
+            **rollback_safety,
         }
 
         policy_readable = all(
@@ -406,6 +476,12 @@ class FirewallCollector:
                     ruleset.strip()
                 )
                 and policy_readable
+                and values[
+                    "firewall_rollback_state_readable"
+                ]
+                and not values[
+                    "firewall_rollback_pending"
+                ]
             )
             else Status.WARNING
         )

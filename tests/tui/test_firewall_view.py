@@ -763,3 +763,215 @@ def test_firewall_rules_services_manager():
     asyncio.run(
         _run_rules_services_manager_test()
     )
+
+
+async def _run_pending_firewall_recovery_test():
+    app = _FirewallHarness()
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        view = app.query_one(
+            FirewallView
+        )
+
+        transaction_id = "a" * 32
+
+        pending_module = _module()
+
+        pending_module["values"].update(
+            {
+                "firewall_rollback_state_readable": {
+                    "value": True,
+                    "readable": True,
+                },
+                "firewall_rollback_pending": {
+                    "value": True,
+                    "readable": True,
+                },
+                "firewall_rollback_transaction_id": {
+                    "value": transaction_id,
+                    "readable": True,
+                },
+                "firewall_rollback_timeout_seconds": {
+                    "value": 120,
+                    "readable": True,
+                },
+            }
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": pending_module,
+                }
+            },
+            True,
+        )
+
+        await pilot.pause()
+
+        assert (
+            view._pending_firewall_confirmation_id
+            == transaction_id
+        )
+
+        assert (
+            view._pending_firewall_observed
+            is True
+        )
+
+        assert app.query_one(
+            "#firewall-apply",
+            Button,
+        ).disabled is True
+
+        assert app.query_one(
+            "#firewall-confirm-connectivity",
+            Button,
+        ).disabled is False
+
+        assert app.query_one(
+            "#firewall-rollback-now",
+            Button,
+        ).disabled is False
+
+        clear_module = _module()
+
+        clear_module["values"].update(
+            {
+                "firewall_rollback_state_readable": {
+                    "value": True,
+                    "readable": True,
+                },
+                "firewall_rollback_pending": {
+                    "value": False,
+                    "readable": True,
+                },
+                "firewall_rollback_transaction_id": {
+                    "value": None,
+                    "readable": True,
+                },
+                "firewall_rollback_timeout_seconds": {
+                    "value": 120,
+                    "readable": True,
+                },
+            }
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": clear_module,
+                }
+            },
+            True,
+        )
+
+        await pilot.pause()
+
+        assert (
+            view._pending_firewall_confirmation_id
+            is None
+        )
+
+        assert (
+            view._pending_firewall_observed
+            is False
+        )
+
+        assert app.query_one(
+            "#firewall-confirm-connectivity",
+            Button,
+        ).disabled is True
+
+        assert app.query_one(
+            "#firewall-rollback-now",
+            Button,
+        ).disabled is True
+
+
+def test_firewall_pending_state_recovers_from_snapshot():
+    asyncio.run(
+        _run_pending_firewall_recovery_test()
+    )
+
+
+async def _run_stale_snapshot_does_not_clear_local_pending_test():
+    app = _FirewallHarness()
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        view = app.query_one(
+            FirewallView
+        )
+
+        transaction_id = "b" * 32
+
+        view._set_pending_firewall_state(
+            transaction_id
+        )
+
+        assert (
+            view._pending_firewall_observed
+            is False
+        )
+
+        clear_module = _module()
+
+        clear_module["values"].update(
+            {
+                "firewall_rollback_state_readable": {
+                    "value": True,
+                    "readable": True,
+                },
+                "firewall_rollback_pending": {
+                    "value": False,
+                    "readable": True,
+                },
+                "firewall_rollback_transaction_id": {
+                    "value": None,
+                    "readable": True,
+                },
+                "firewall_rollback_timeout_seconds": {
+                    "value": 120,
+                    "readable": True,
+                },
+            }
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": clear_module,
+                }
+            },
+            True,
+        )
+
+        await pilot.pause()
+
+        assert (
+            view._pending_firewall_confirmation_id
+            == transaction_id
+        )
+
+        assert app.query_one(
+            "#firewall-confirm-connectivity",
+            Button,
+        ).disabled is False
+
+        assert app.query_one(
+            "#firewall-rollback-now",
+            Button,
+        ).disabled is False
+
+
+def test_stale_snapshot_does_not_clear_new_local_pending():
+    asyncio.run(
+        _run_stale_snapshot_does_not_clear_local_pending_test()
+    )

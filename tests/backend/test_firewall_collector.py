@@ -229,3 +229,124 @@ def test_advanced_port_set_requires_accept_rule():
         values["allowed_tcp_ports"]
         is None
     )
+
+
+def test_firewall_rollback_state_reports_none(
+    monkeypatch,
+):
+    import homelabctl.backend.collectors.firewall as firewall_collector
+
+    monkeypatch.setattr(
+        firewall_collector,
+        "load_pending_firewall_rollback",
+        lambda: None,
+    )
+
+    values = (
+        firewall_collector
+        ._firewall_rollback_safety_state()
+    )
+
+    assert (
+        values[
+            "firewall_rollback_state_readable"
+        ]
+        is True
+    )
+
+    assert (
+        values[
+            "firewall_rollback_pending"
+        ]
+        is False
+    )
+
+    assert (
+        values[
+            "firewall_rollback_transaction_id"
+        ]
+        is None
+    )
+
+
+def test_firewall_rollback_state_reports_pending(
+    monkeypatch,
+):
+    import homelabctl.backend.collectors.firewall as firewall_collector
+
+    transaction_id = "a" * 32
+
+    monkeypatch.setattr(
+        firewall_collector,
+        "load_pending_firewall_rollback",
+        lambda: {
+            "transaction_id": transaction_id,
+            "unit": (
+                "homelabctl-firewall-rollback-"
+                + transaction_id
+            ),
+            "timeout_seconds": 120,
+        },
+    )
+
+    values = (
+        firewall_collector
+        ._firewall_rollback_safety_state()
+    )
+
+    assert (
+        values[
+            "firewall_rollback_state_readable"
+        ]
+        is True
+    )
+
+    assert (
+        values[
+            "firewall_rollback_pending"
+        ]
+        is True
+    )
+
+    assert (
+        values[
+            "firewall_rollback_transaction_id"
+        ]
+        == transaction_id
+    )
+
+
+def test_firewall_rollback_state_failure_is_unreadable(
+    monkeypatch,
+):
+    import homelabctl.backend.collectors.firewall as firewall_collector
+
+    def fail():
+        raise PermissionError(
+            "not readable"
+        )
+
+    monkeypatch.setattr(
+        firewall_collector,
+        "load_pending_firewall_rollback",
+        fail,
+    )
+
+    values = (
+        firewall_collector
+        ._firewall_rollback_safety_state()
+    )
+
+    assert (
+        values[
+            "firewall_rollback_state_readable"
+        ]
+        is False
+    )
+
+    assert (
+        values[
+            "firewall_rollback_pending"
+        ]
+        is None
+    )
