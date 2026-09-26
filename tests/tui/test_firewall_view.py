@@ -7,6 +7,7 @@ from textual.app import (
 )
 from textual.widgets import (
     Button,
+    ContentSwitcher,
     Input,
     Static,
 )
@@ -37,6 +38,9 @@ def _module():
         "allow_dhcp_client": True,
         "allow_ipv4_icmp": False,
         "allow_ipv6_icmp": True,
+        "trusted_ipv4_cidrs": [],
+        "allowed_tcp_ports": [],
+        "allowed_udp_ports": [],
     }
 
     return {
@@ -329,4 +333,433 @@ async def _run_safe_apply_control_test():
 def test_firewall_safe_apply_control_states():
     asyncio.run(
         _run_safe_apply_control_test()
+    )
+
+
+
+async def _run_multi_page_architecture_test():
+    app = _FirewallHarness()
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        view = app.query_one(
+            FirewallView
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": _module(),
+                }
+            },
+            True,
+        )
+
+        await pilot.pause()
+
+        switcher = app.query_one(
+            "#firewall-pages",
+            ContentSwitcher,
+        )
+
+        assert (
+            switcher.current
+            == "firewall-page-overview"
+        )
+
+        pages = (
+            "overview",
+            "access",
+            "rules",
+            "advanced",
+        )
+
+        for page in pages:
+            app.query_one(
+                f"#firewall-nav-{page}",
+                Button,
+            )
+
+            view._show_page(
+                page
+            )
+
+            assert (
+                switcher.current
+                == f"firewall-page-{page}"
+            )
+
+        assert app.query_one(
+            "#firewall-management-interface",
+            Input,
+        )
+
+        assert app.query_one(
+            "#firewall-management-cidr",
+            Input,
+        )
+
+        assert app.query_one(
+            "#firewall-ssh-port",
+            Input,
+        )
+
+        preview = app.query_one(
+            "#firewall-preview",
+            Button,
+        )
+
+        apply = app.query_one(
+            "#firewall-apply",
+            Button,
+        )
+
+        reset = app.query_one(
+            "#firewall-reset",
+            Button,
+        )
+
+        assert preview is not None
+        assert apply is not None
+        assert reset is not None
+
+        for page in pages:
+            view._show_page(
+                page
+            )
+
+            assert app.query_one(
+                "#firewall-preview",
+                Button,
+            ) is preview
+
+            assert app.query_one(
+                "#firewall-apply",
+                Button,
+            ) is apply
+
+
+def test_firewall_multi_page_architecture():
+    asyncio.run(
+        _run_multi_page_architecture_test()
+    )
+
+
+
+async def _run_polished_layout_test():
+    app = _FirewallHarness()
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+
+        view = app.query_one(
+            FirewallView
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": _module(),
+                }
+            },
+            True,
+        )
+
+        await pilot.pause()
+
+        runtime = app.query_one(
+            "#firewall-overview-runtime",
+            Static,
+        )
+
+        management = app.query_one(
+            "#firewall-overview-management",
+            Static,
+        )
+
+        traffic = app.query_one(
+            "#firewall-overview-traffic",
+            Static,
+        )
+
+        policy = app.query_one(
+            "#firewall-overview-policy",
+            Static,
+        )
+
+        assert "active" in str(
+            runtime.content
+        )
+
+        assert "mgmt0" in str(
+            management.content
+        )
+
+        assert "IPv4 ICMP" in str(
+            traffic.content
+        )
+
+        assert "Input" in str(
+            policy.content
+        )
+
+        panel = app.query_one(
+            "#firewall-actions-panel"
+        )
+
+        assert not panel.has_class(
+            "preview-open"
+        )
+
+        assert view._render_preview() is True
+
+        assert panel.has_class(
+            "preview-open"
+        )
+
+        view._reset_draft()
+
+        assert not panel.has_class(
+            "preview-open"
+        )
+
+
+def test_firewall_polished_layout():
+    asyncio.run(
+        _run_polished_layout_test()
+    )
+
+
+
+async def _run_access_containment_test():
+    app = _FirewallHarness()
+
+    async with app.run_test(
+        size=(160, 50)
+    ) as pilot:
+        await pilot.pause()
+
+        view = app.query_one(
+            FirewallView
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": _module(),
+                }
+            },
+            True,
+        )
+
+        view._show_page(
+            "access"
+        )
+
+        await pilot.pause()
+
+        management_panel = app.query_one(
+            "#firewall-management-panel"
+        )
+
+        traffic_panel = app.query_one(
+            "#firewall-traffic-panel"
+        )
+
+        management_controls = (
+            app.query_one(
+                "#firewall-management-interface"
+            ),
+            app.query_one(
+                "#firewall-management-cidr"
+            ),
+            app.query_one(
+                "#firewall-ssh-port"
+            ),
+        )
+
+        traffic_controls = (
+            app.query_one(
+                "#firewall-dhcp"
+            ),
+            app.query_one(
+                "#firewall-ipv4-icmp"
+            ),
+            app.query_one(
+                "#firewall-ipv6-icmp"
+            ),
+        )
+
+        for control in management_controls:
+            assert control.region.height > 0
+            assert (
+                control.region.y
+                >= management_panel.region.y
+            )
+            assert (
+                control.region.bottom
+                <= management_panel.region.bottom
+            )
+
+        for control in traffic_controls:
+            assert control.region.height > 0
+            assert (
+                control.region.y
+                >= traffic_panel.region.y
+            )
+            assert (
+                control.region.bottom
+                <= traffic_panel.region.bottom
+            )
+
+
+def test_firewall_access_controls_stay_inside_panels():
+    asyncio.run(
+        _run_access_containment_test()
+    )
+
+
+async def _run_rules_services_manager_test():
+    from textual.widgets import DataTable
+
+    from homelabctl.features.firewall.rules import (
+        FirewallServiceRule,
+    )
+
+    app = _FirewallHarness()
+
+    async with app.run_test(
+        size=(160, 50)
+    ) as pilot:
+        await pilot.pause()
+
+        view = app.query_one(
+            FirewallView
+        )
+
+        view.update_snapshot(
+            {},
+            {
+                "modules": {
+                    "firewall": _module(),
+                }
+            },
+            True,
+        )
+
+        await pilot.pause()
+
+        view._show_page(
+            "rules"
+        )
+
+        view._service_rules = [
+            FirewallServiceRule(
+                id="a" * 32,
+                name="HTTPS",
+                protocol="tcp",
+                port=443,
+                enabled=True,
+            ),
+            FirewallServiceRule(
+                id="b" * 32,
+                name="Jellyfin",
+                protocol="tcp",
+                port=8096,
+                enabled=False,
+            ),
+            FirewallServiceRule(
+                id="c" * 32,
+                name="DNS",
+                protocol="udp",
+                port=53,
+                enabled=True,
+            ),
+        ]
+
+        view._service_rules_initialized = True
+
+        view._render_service_rules_table()
+
+        table = app.query_one(
+            "#firewall-rules-table",
+            DataTable,
+        )
+
+        assert table.row_count == 3
+
+        assert not app.query_one(
+            "#firewall-rule-add",
+            Button,
+        ).disabled
+
+        assert not app.query_one(
+            "#firewall-rule-edit",
+            Button,
+        ).disabled
+
+        assert not app.query_one(
+            "#firewall-rule-remove",
+            Button,
+        ).disabled
+
+        assert not app.query_one(
+            "#firewall-rule-toggle",
+            Button,
+        ).disabled
+
+        settings = (
+            view._build_settings_from_form()
+        )
+
+        assert (
+            settings.allowed_tcp_ports
+            == (
+                443,
+            )
+        )
+
+        assert (
+            settings.allowed_udp_ports
+            == (
+                53,
+            )
+        )
+
+        view._open_rule_editor(
+            view._service_rules[0]
+        )
+
+        editor = app.query_one(
+            "#firewall-rule-editor"
+        )
+
+        assert editor.has_class(
+            "editing"
+        )
+
+        assert app.query_one(
+            "#firewall-rule-name",
+            Input,
+        ).value == "HTTPS"
+
+        assert app.query_one(
+            "#firewall-rule-port",
+            Input,
+        ).value == "443"
+
+        view._close_rule_editor()
+
+        assert not editor.has_class(
+            "editing"
+        )
+
+
+def test_firewall_rules_services_manager():
+    asyncio.run(
+        _run_rules_services_manager_test()
     )

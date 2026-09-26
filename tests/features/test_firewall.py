@@ -1,3 +1,5 @@
+import pytest
+
 from homelabctl.features.firewall.plan import (
     render_config,
 )
@@ -65,6 +67,15 @@ def _actual_for(
             "allow_ipv6_icmp": (
                 settings.allow_ipv6_icmp
             ),
+            "trusted_ipv4_cidrs": sorted(
+                settings.trusted_ipv4_cidrs
+            ),
+            "allowed_tcp_ports": sorted(
+                settings.allowed_tcp_ports
+            ),
+            "allowed_udp_ports": sorted(
+                settings.allowed_udp_ports
+            ),
         },
     )
 
@@ -117,6 +128,213 @@ def test_config_aware_firewall_detects_drift():
     actual.values[
         "ssh_port"
     ].value = 22
+
+    report = verify(
+        actual,
+        settings,
+    )
+
+    assert report.passed is False
+
+
+
+def test_firewall_advanced_policy_sets():
+    settings = FirewallSettings(
+        management_interface="mgmt0",
+        management_ipv4_cidr="192.0.2.0/24",
+        ssh_port=2222,
+        trusted_ipv4_cidrs=(
+            "198.51.100.0/24",
+            "203.0.113.0/24",
+        ),
+        allowed_tcp_ports=(
+            80,
+            443,
+        ),
+        allowed_udp_ports=(
+            53,
+        ),
+    )
+
+    output = render_config(
+        settings
+    )
+
+    assert (
+        "set homelabctl_trusted_ipv4"
+        in output
+    )
+
+    assert (
+        "elements = { 192.0.2.0/24, "
+        "198.51.100.0/24, "
+        "203.0.113.0/24 }"
+        in output
+    )
+
+    assert (
+        "set homelabctl_allowed_tcp_ports"
+        in output
+    )
+
+    assert (
+        "elements = { 80, 443 }"
+        in output
+    )
+
+    assert (
+        "set homelabctl_allowed_udp_ports"
+        in output
+    )
+
+    assert (
+        "elements = { 53 }"
+        in output
+    )
+
+    assert (
+        'iifname "mgmt0" '
+        "ip saddr @homelabctl_trusted_ipv4 "
+        "tcp dport @homelabctl_allowed_tcp_ports "
+        "ct state new accept"
+        in output
+    )
+
+    assert (
+        'iifname "mgmt0" '
+        "ip saddr @homelabctl_trusted_ipv4 "
+        "udp dport @homelabctl_allowed_udp_ports "
+        "ct state new accept"
+        in output
+    )
+
+
+def test_firewall_rejects_invalid_trusted_networks():
+    invalid_sets = (
+        (
+            "2001:db8::/64",
+        ),
+        (
+            "198.51.100.10/24",
+        ),
+        (
+            "192.0.2.128/25",
+        ),
+        (
+            "198.51.100.0/24",
+            "198.51.100.128/25",
+        ),
+    )
+
+    for trusted in invalid_sets:
+        settings = FirewallSettings(
+            management_interface="mgmt0",
+            management_ipv4_cidr=(
+                "192.0.2.0/24"
+            ),
+            trusted_ipv4_cidrs=trusted,
+        )
+
+        with pytest.raises(
+            ValueError
+        ):
+            settings.validate()
+
+
+def test_firewall_rejects_invalid_allowed_ports():
+    invalid_ports = (
+        (
+            (0,),
+            (),
+        ),
+        (
+            (65536,),
+            (),
+        ),
+        (
+            (80, 80),
+            (),
+        ),
+        (
+            (),
+            (53, 53),
+        ),
+        (
+            (True,),
+            (),
+        ),
+    )
+
+    for tcp_ports, udp_ports in invalid_ports:
+        settings = FirewallSettings(
+            management_interface="mgmt0",
+            management_ipv4_cidr=(
+                "192.0.2.0/24"
+            ),
+            allowed_tcp_ports=tcp_ports,
+            allowed_udp_ports=udp_ports,
+        )
+
+        with pytest.raises(
+            ValueError
+        ):
+            settings.validate()
+
+
+
+def test_advanced_policy_verification_passes():
+    settings = FirewallSettings(
+        management_interface="mgmt0",
+        management_ipv4_cidr=(
+            "192.0.2.0/24"
+        ),
+        ssh_port=2222,
+        trusted_ipv4_cidrs=(
+            "198.51.100.0/24",
+        ),
+        allowed_tcp_ports=(
+            80,
+            443,
+        ),
+        allowed_udp_ports=(
+            53,
+        ),
+    )
+
+    report = verify(
+        _actual_for(
+            settings
+        ),
+        settings,
+    )
+
+    assert report.passed is True
+
+
+def test_advanced_policy_verification_detects_drift():
+    settings = FirewallSettings(
+        management_interface="mgmt0",
+        management_ipv4_cidr=(
+            "192.0.2.0/24"
+        ),
+        trusted_ipv4_cidrs=(
+            "198.51.100.0/24",
+        ),
+        allowed_tcp_ports=(
+            80,
+            443,
+        ),
+    )
+
+    actual = _actual_for(
+        settings
+    )
+
+    actual.values[
+        "allowed_tcp_ports"
+    ].value = [
+        80
+    ]
 
     report = verify(
         actual,

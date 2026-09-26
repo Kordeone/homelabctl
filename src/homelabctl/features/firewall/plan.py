@@ -43,6 +43,15 @@ def render_config(
         allow_ipv6_icmp=(
             settings.allow_ipv6_icmp
         ),
+        trusted_ipv4_cidrs=(
+            settings.trusted_ipv4_cidrs
+        ),
+        allowed_tcp_ports=(
+            settings.allowed_tcp_ports
+        ),
+        allowed_udp_ports=(
+            settings.allowed_udp_ports
+        ),
     )
 
 

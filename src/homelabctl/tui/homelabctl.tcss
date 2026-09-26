@@ -3032,3 +3032,436 @@ ControlCenterScreen.tiny-ui .firewall-panel {
     background: #7b2929;
     border: round #ef6262;
 }
+
+/* ==========================================================
+   FIREWALL — CONSOLIDATED MODULE ARCHITECTURE
+   ========================================================== */
+
+#firewall-section-nav {
+    width: 1fr;
+    height: 4;
+    padding: 0 1;
+    layout: horizontal;
+}
+
+.firewall-section-button {
+    width: auto;
+    min-width: 18;
+    height: 3;
+    margin: 0 1 0 0;
+    background: #202020;
+    border: solid #3a3a3a;
+}
+
+.firewall-section-button:focus,
+.firewall-section-button.active-page-tab {
+    border: solid #f2d45c;
+}
+
+#firewall-pages {
+    width: 1fr;
+    height: 1fr;
+}
+
+.firewall-section-page {
+    width: 1fr;
+    height: 1fr;
+    padding: 1;
+}
+
+.firewall-section-page .firewall-panel {
+    border: solid #008b8b;
+    padding: 1;
+}
+
+.firewall-panel-title {
+    height: 2;
+    text-style: bold;
+}
+
+.firewall-section-note {
+    margin-top: 1;
+    color: #8f8f8f;
+}
+
+
+/* Overview */
+
+.firewall-overview-row {
+    width: 1fr;
+    height: 10;
+    margin-bottom: 1;
+}
+
+.firewall-summary-card {
+    width: 1fr;
+    height: 10;
+    margin-right: 1;
+}
+
+
+/* Access & Network */
+
+#firewall-access-top {
+    width: 1fr;
+    height: 20;
+    margin-bottom: 1;
+}
+
+.firewall-access-panel {
+    width: 1fr;
+    height: 20;
+    margin-right: 1;
+}
+
+#firewall-management-panel Input {
+    width: 38;
+    max-width: 48;
+    margin-bottom: 1;
+}
+
+#firewall-traffic-panel {
+    width: 1fr;
+    height: 9;
+}
+
+#firewall-traffic-row {
+    width: 1fr;
+    height: 5;
+}
+
+.firewall-traffic-setting {
+    width: 1fr;
+    height: 5;
+    margin-right: 1;
+}
+
+.firewall-traffic-setting SpaceSelect {
+    width: 18;
+}
+
+
+/* Rules */
+
+#firewall-rules-panel {
+    width: 1fr;
+    height: auto;
+    min-height: 8;
+}
+
+
+/* Advanced */
+
+.firewall-advanced-row {
+    width: 1fr;
+    height: auto;
+    min-height: 12;
+    margin-bottom: 1;
+}
+
+.firewall-advanced-panel {
+    width: 1fr;
+    height: auto;
+    min-height: 12;
+    margin-right: 1;
+}
+
+
+/* Persistent Change Control */
+
+#firewall-actions-panel {
+    width: 1fr;
+    height: 4;
+    min-height: 4;
+    margin: 0;
+    padding: 0 1;
+    border-top: solid #3a3a3a;
+}
+
+#firewall-change-actions {
+    width: 1fr;
+    height: 4;
+}
+
+#firewall-change-title {
+    width: 16;
+    content-align: left middle;
+    text-style: bold;
+}
+
+#firewall-safety-note {
+    width: 1fr;
+    height: 3;
+    content-align: left middle;
+    color: #a8a8a8;
+}
+
+#firewall-change-actions Button {
+    width: auto;
+    min-width: 9;
+    height: 3;
+    margin-left: 1;
+}
+
+#firewall-preview-scroll {
+    display: none;
+    width: 1fr;
+    height: 0;
+    margin: 0;
+    padding: 0 1;
+    border-top: solid #3a3a3a;
+}
+
+#firewall-actions-panel.preview-open {
+    height: 18;
+    min-height: 18;
+}
+
+#firewall-actions-panel.preview-open
+#firewall-preview-scroll {
+    display: block;
+    height: 14;
+    padding: 1;
+}
+
+
+/* Density */
+
+ControlCenterScreen.compact-ui
+#firewall-section-nav,
+ControlCenterScreen.tiny-ui
+#firewall-section-nav {
+    height: 3;
+    padding: 0;
+}
+
+ControlCenterScreen.compact-ui
+.firewall-section-button,
+ControlCenterScreen.tiny-ui
+.firewall-section-button {
+    height: 3;
+    min-width: 15;
+    margin-right: 1;
+}
+
+ControlCenterScreen.compact-ui
+.firewall-section-page,
+ControlCenterScreen.tiny-ui
+.firewall-section-page {
+    padding: 0 1;
+}
+
+ControlCenterScreen.compact-ui
+#firewall-management-panel Input,
+ControlCenterScreen.tiny-ui
+#firewall-management-panel Input {
+    width: 32;
+}
+
+ControlCenterScreen.compact-ui
+#firewall-safety-note,
+ControlCenterScreen.tiny-ui
+#firewall-safety-note {
+    display: none;
+}
+
+ControlCenterScreen.compact-ui
+#firewall-actions-panel,
+ControlCenterScreen.tiny-ui
+#firewall-actions-panel {
+    height: 4;
+    min-height: 4;
+    padding: 0;
+}
+
+ControlCenterScreen.compact-ui
+#firewall-actions-panel.preview-open,
+ControlCenterScreen.tiny-ui
+#firewall-actions-panel.preview-open {
+    height: 15;
+    min-height: 15;
+}
+
+ControlCenterScreen.compact-ui
+#firewall-actions-panel.preview-open
+#firewall-preview-scroll,
+ControlCenterScreen.tiny-ui
+#firewall-actions-panel.preview-open
+#firewall-preview-scroll {
+    height: 11;
+}
+
+
+/* ==========================================================
+   FIREWALL — CHANGE CONTROL STATUS REPAIR
+   Explicitly neutralizes historical warning-panel styling.
+   ========================================================== */
+
+#firewall-change-actions #firewall-safety-note {
+    width: 1fr;
+    height: 3;
+    min-height: 3;
+
+    margin: 0;
+    padding: 0 1;
+
+    border: none;
+    background: transparent;
+
+    color: #a8a8a8;
+
+    content-align: left middle;
+}
+
+
+/* ==========================================================
+   FIREWALL — ACCESS CONTENT CONTAINMENT REPAIR
+   Let widget content determine panel height instead of
+   clipping Inputs / SpaceSelect controls with fixed rows.
+   ========================================================== */
+
+#firewall-access-top {
+    height: auto;
+    min-height: 25;
+}
+
+.firewall-access-panel {
+    height: auto;
+    min-height: 25;
+}
+
+#firewall-management-panel {
+    height: auto;
+    min-height: 25;
+}
+
+#firewall-trusted-panel {
+    height: auto;
+    min-height: 25;
+}
+
+#firewall-traffic-panel {
+    height: auto;
+    min-height: 9;
+}
+
+#firewall-traffic-row {
+    height: auto;
+    min-height: 5;
+}
+
+.firewall-traffic-setting {
+    height: auto;
+    min-height: 5;
+}
+
+#firewall-management-panel Input {
+    height: 3;
+}
+
+.firewall-traffic-setting SpaceSelect {
+    height: 3;
+}
+
+
+/* ==========================================================
+   FIREWALL — RULES AND SERVICES MANAGER V1
+   ========================================================== */
+
+#firewall-rules-layout {
+    width: 1fr;
+    height: 1fr;
+    layout: horizontal;
+}
+
+#firewall-rules-list-panel {
+    width: 1fr;
+    height: 1fr;
+    margin-right: 1;
+}
+
+#firewall-rules-table {
+    width: 1fr;
+    height: 1fr;
+    min-height: 10;
+    margin-top: 1;
+    margin-bottom: 1;
+}
+
+#firewall-rule-actions {
+    width: 1fr;
+    height: 3;
+}
+
+#firewall-rule-actions Button {
+    width: auto;
+    min-width: 12;
+    margin-right: 1;
+}
+
+#firewall-rule-editor {
+    display: none;
+
+    width: 42;
+    min-width: 36;
+    height: auto;
+
+    padding: 1 2;
+    border: solid #3a3a3a;
+}
+
+#firewall-rule-editor.editing {
+    display: block;
+}
+
+#firewall-rule-editor Input,
+#firewall-rule-editor SpaceSelect {
+    width: 1fr;
+    height: 3;
+    margin-bottom: 1;
+}
+
+#firewall-rule-fixed-policy {
+    width: 1fr;
+    height: auto;
+
+    margin-top: 1;
+    margin-bottom: 1;
+
+    color: #8f8f8f;
+}
+
+#firewall-rule-editor-actions {
+    width: 1fr;
+    height: 3;
+    margin-top: 1;
+}
+
+#firewall-rule-editor-actions Button {
+    width: 1fr;
+    margin-right: 1;
+}
+
+ControlCenterScreen.compact-ui #firewall-rules-layout,
+ControlCenterScreen.tiny-ui #firewall-rules-layout {
+    layout: vertical;
+    height: auto;
+}
+
+ControlCenterScreen.compact-ui #firewall-rules-list-panel,
+ControlCenterScreen.tiny-ui #firewall-rules-list-panel {
+    width: 1fr;
+    height: auto;
+
+    min-height: 15;
+
+    margin-right: 0;
+    margin-bottom: 1;
+}
+
+ControlCenterScreen.compact-ui #firewall-rule-editor,
+ControlCenterScreen.tiny-ui #firewall-rule-editor {
+    width: 1fr;
+    min-width: 1;
+    height: auto;
+}

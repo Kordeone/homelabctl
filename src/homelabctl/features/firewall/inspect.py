@@ -14,33 +14,43 @@ from homelabctl.features.firewall.schema import (
 )
 
 
+def _setting(
+    key: str,
+    value: object,
+) -> DesiredSetting:
+    return DesiredSetting(
+        key=key,
+        value=value,
+    )
+
+
 def desired_state(
     settings: FirewallSettings | None = None,
 ) -> ModuleDesiredState:
     desired = {
-        "service_active": DesiredSetting(
-            key="service_active",
-            value="active",
+        "service_active": _setting(
+            "service_active",
+            "active",
         ),
-        "service_enabled": DesiredSetting(
-            key="service_enabled",
-            value="enabled",
+        "service_enabled": _setting(
+            "service_enabled",
+            "enabled",
         ),
-        "ruleset_present": DesiredSetting(
-            key="ruleset_present",
-            value=True,
+        "ruleset_present": _setting(
+            "ruleset_present",
+            True,
         ),
-        "inet_filter_table": DesiredSetting(
-            key="inet_filter_table",
-            value=True,
+        "inet_filter_table": _setting(
+            "inet_filter_table",
+            True,
         ),
-        "input_policy_drop": DesiredSetting(
-            key="input_policy_drop",
-            value=True,
+        "input_policy_drop": _setting(
+            "input_policy_drop",
+            True,
         ),
-        "forward_policy_drop": DesiredSetting(
-            key="forward_policy_drop",
-            value=True,
+        "forward_policy_drop": _setting(
+            "forward_policy_drop",
+            True,
         ),
     }
 
@@ -50,58 +60,62 @@ def desired_state(
         desired.update(
             {
                 "management_interface":
-                    DesiredSetting(
-                        key=(
-                            "management_interface"
-                        ),
-                        value=(
-                            settings
-                            .management_interface
-                        ),
+                    _setting(
+                        "management_interface",
+                        settings
+                        .management_interface,
                     ),
                 "management_ipv4_cidr":
-                    DesiredSetting(
-                        key=(
-                            "management_ipv4_cidr"
-                        ),
-                        value=(
-                            settings
-                            .management_ipv4_cidr
-                        ),
+                    _setting(
+                        "management_ipv4_cidr",
+                        settings
+                        .management_ipv4_cidr,
                     ),
                 "ssh_port":
-                    DesiredSetting(
-                        key="ssh_port",
-                        value=settings.ssh_port,
+                    _setting(
+                        "ssh_port",
+                        settings.ssh_port,
                     ),
                 "allow_dhcp_client":
-                    DesiredSetting(
-                        key=(
-                            "allow_dhcp_client"
-                        ),
-                        value=(
-                            settings
-                            .allow_dhcp_client
-                        ),
+                    _setting(
+                        "allow_dhcp_client",
+                        settings
+                        .allow_dhcp_client,
                     ),
                 "allow_ipv4_icmp":
-                    DesiredSetting(
-                        key=(
-                            "allow_ipv4_icmp"
-                        ),
-                        value=(
-                            settings
-                            .allow_ipv4_icmp
-                        ),
+                    _setting(
+                        "allow_ipv4_icmp",
+                        settings
+                        .allow_ipv4_icmp,
                     ),
                 "allow_ipv6_icmp":
-                    DesiredSetting(
-                        key=(
-                            "allow_ipv6_icmp"
-                        ),
-                        value=(
+                    _setting(
+                        "allow_ipv6_icmp",
+                        settings
+                        .allow_ipv6_icmp,
+                    ),
+                "trusted_ipv4_cidrs":
+                    _setting(
+                        "trusted_ipv4_cidrs",
+                        sorted(
                             settings
-                            .allow_ipv6_icmp
+                            .trusted_ipv4_cidrs
+                        ),
+                    ),
+                "allowed_tcp_ports":
+                    _setting(
+                        "allowed_tcp_ports",
+                        sorted(
+                            settings
+                            .allowed_tcp_ports
+                        ),
+                    ),
+                "allowed_udp_ports":
+                    _setting(
+                        "allowed_udp_ports",
+                        sorted(
+                            settings
+                            .allowed_udp_ports
                         ),
                     ),
             }

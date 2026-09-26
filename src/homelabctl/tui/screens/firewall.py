@@ -38,6 +38,18 @@ from homelabctl.core.models import Status
 from homelabctl.features.firewall.plan import (
     render_config,
 )
+from textual.widgets import DataTable
+
+from homelabctl.features.firewall.rules import (
+    FirewallServiceRule,
+    compile_allowed_ports,
+    load_managed_service_rules,
+    new_service_rule,
+    save_managed_service_rules,
+    service_rules_from_active_ports,
+    validate_service_rules,
+)
+
 from homelabctl.features.firewall.schema import (
     FirewallSettings,
 )
@@ -66,7 +78,7 @@ YES_NO = (
 class FirewallView(NavigableView):
     """nftables firewall management view."""
 
-    ENTRY_ID = "firewall-tab-configure"
+    ENTRY_ID = "firewall-nav-overview"
 
     BINDINGS = [
         Binding(
@@ -84,68 +96,80 @@ class FirewallView(NavigableView):
     ]
 
     NAVIGATION = {
-        "firewall-tab-configure": {
+        "firewall-nav-overview": {
             "left": SIDEBAR_TARGET,
-            "right": "firewall-tab-inspect",
-            "down": "firewall-management-interface",
-        },
-        "firewall-tab-inspect": {
-            "left": "firewall-tab-configure",
+            "right": "firewall-nav-access",
             "down": "firewall-preview",
         },
+        "firewall-nav-access": {
+            "left": "firewall-nav-overview",
+            "right": "firewall-nav-rules",
+            "down": "firewall-management-interface",
+        },
+        "firewall-nav-rules": {
+            "left": "firewall-nav-access",
+            "right": "firewall-nav-advanced",
+            "down": "firewall-preview",
+        },
+        "firewall-nav-advanced": {
+            "left": "firewall-nav-rules",
+            "down": "firewall-preview",
+        },
+
         "firewall-management-interface": {
             "left": SIDEBAR_TARGET,
+            "up": "firewall-nav-access",
             "down": "firewall-management-cidr",
-            "up": "firewall-tab-configure",
         },
         "firewall-management-cidr": {
             "left": SIDEBAR_TARGET,
-            "down": "firewall-ssh-port",
             "up": "firewall-management-interface",
+            "down": "firewall-ssh-port",
         },
         "firewall-ssh-port": {
             "left": SIDEBAR_TARGET,
-            "down": "firewall-dhcp",
             "up": "firewall-management-cidr",
+            "down": "firewall-dhcp",
         },
+
         "firewall-dhcp": {
             "left": SIDEBAR_TARGET,
-            "down": "firewall-ipv4-icmp",
+            "right": "firewall-ipv4-icmp",
             "up": "firewall-ssh-port",
         },
         "firewall-ipv4-icmp": {
-            "left": SIDEBAR_TARGET,
-            "down": "firewall-ipv6-icmp",
-            "up": "firewall-dhcp",
+            "left": "firewall-dhcp",
+            "right": "firewall-ipv6-icmp",
+            "up": "firewall-ssh-port",
         },
         "firewall-ipv6-icmp": {
-            "left": SIDEBAR_TARGET,
-            "right": "firewall-preview",
-            "up": "firewall-ipv4-icmp",
+            "left": "firewall-ipv4-icmp",
+            "up": "firewall-ssh-port",
         },
+
         "firewall-preview": {
-            "left": "firewall-ipv6-icmp",
-            "down": "firewall-apply",
-            "up": "firewall-tab-inspect",
-        },
-        "firewall-apply": {
-            "left": "firewall-ipv6-icmp",
-            "up": "firewall-preview",
-            "down": "firewall-reset",
+            "left": SIDEBAR_TARGET,
+            "right": "firewall-reset",
+            "up": "firewall-nav-advanced",
         },
         "firewall-reset": {
-            "left": "firewall-ipv6-icmp",
-            "up": "firewall-apply",
-            "down": "firewall-confirm-connectivity",
+            "left": "firewall-preview",
+            "right": "firewall-apply",
+            "up": "firewall-nav-advanced",
+        },
+        "firewall-apply": {
+            "left": "firewall-reset",
+            "right": "firewall-confirm-connectivity",
+            "up": "firewall-nav-advanced",
         },
         "firewall-confirm-connectivity": {
-            "left": "firewall-ipv6-icmp",
-            "up": "firewall-reset",
-            "down": "firewall-rollback-now",
+            "left": "firewall-apply",
+            "right": "firewall-rollback-now",
+            "up": "firewall-nav-advanced",
         },
         "firewall-rollback-now": {
-            "left": "firewall-ipv6-icmp",
-            "up": "firewall-confirm-connectivity",
+            "left": "firewall-confirm-connectivity",
+            "up": "firewall-nav-advanced",
         },
     }
 
@@ -154,7 +178,7 @@ class FirewallView(NavigableView):
             id="firewall-view"
         )
 
-        self._page = "configure"
+        self._page = "overview"
         self._backend_online = False
         self._module: dict[str, Any] = {}
         self._draft_initialized = False
@@ -175,71 +199,144 @@ class FirewallView(NavigableView):
                 )
 
                 yield Static(
-                    "WAIT",
+                    "UNKNOWN",
                     id="firewall-status",
                 )
 
             with Horizontal(
-                id="firewall-page-selector"
+                id="firewall-section-nav"
             ):
                 yield Button(
-                    "Configure",
-                    id="firewall-tab-configure",
-                    classes="firewall-page-tab",
+                    "Overview",
+                    id="firewall-nav-overview",
+                    classes=(
+                        "firewall-section-button "
+                        "active-page-tab"
+                    ),
                 )
 
                 yield Button(
-                    "Inspect",
-                    id="firewall-tab-inspect",
-                    classes="firewall-page-tab",
+                    "Access & Network",
+                    id="firewall-nav-access",
+                    classes="firewall-section-button",
+                )
+
+                yield Button(
+                    "Rules & Services",
+                    id="firewall-nav-rules",
+                    classes="firewall-section-button",
+                )
+
+                yield Button(
+                    "Advanced",
+                    id="firewall-nav-advanced",
+                    classes="firewall-section-button",
                 )
 
             with ContentSwitcher(
-                initial=(
-                    "firewall-page-configure"
-                ),
+                initial="firewall-page-overview",
                 id="firewall-pages",
             ):
                 with VerticalScroll(
-                    id="firewall-page-configure"
+                    id="firewall-page-overview",
+                    classes="firewall-section-page",
                 ):
-                    with Grid(
-                        id="firewall-configure-grid"
+                    with Horizontal(
+                        classes="firewall-overview-row"
                     ):
                         with Vertical(
-                            id="firewall-current-panel",
-                            classes="firewall-panel",
+                            classes=(
+                                "firewall-panel "
+                                "firewall-summary-card"
+                            ),
                         ):
                             yield Static(
-                                "Current State",
-                                classes=(
-                                    "firewall-panel-title"
-                                ),
+                                "Runtime",
+                                classes="firewall-panel-title",
                             )
 
                             yield Static(
-                                "Waiting for backend...",
-                                id=(
-                                    "firewall-current-content"
-                                ),
+                                "",
+                                id="firewall-overview-runtime",
+                                markup=False,
                             )
 
-                        with VerticalScroll(
-                            id="firewall-policy-panel",
-                            classes="firewall-panel",
+                        with Vertical(
+                            classes=(
+                                "firewall-panel "
+                                "firewall-summary-card"
+                            ),
                         ):
                             yield Static(
-                                "Desired Firewall Policy",
-                                classes=(
-                                    "firewall-panel-title"
-                                ),
+                                "Management",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                "",
+                                id="firewall-overview-management",
+                                markup=False,
+                            )
+
+                    with Horizontal(
+                        classes="firewall-overview-row"
+                    ):
+                        with Vertical(
+                            classes=(
+                                "firewall-panel "
+                                "firewall-summary-card"
+                            ),
+                        ):
+                            yield Static(
+                                "Traffic",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                "",
+                                id="firewall-overview-traffic",
+                                markup=False,
+                            )
+
+                        with Vertical(
+                            classes=(
+                                "firewall-panel "
+                                "firewall-summary-card"
+                            ),
+                        ):
+                            yield Static(
+                                "Policy",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                "",
+                                id="firewall-overview-policy",
+                                markup=False,
+                            )
+
+                with VerticalScroll(
+                    id="firewall-page-access",
+                    classes="firewall-section-page",
+                ):
+                    with Horizontal(
+                        id="firewall-access-top"
+                    ):
+                        with Vertical(
+                            id="firewall-management-panel",
+                            classes=(
+                                "firewall-panel "
+                                "firewall-access-panel"
+                            ),
+                        ):
+                            yield Static(
+                                "Management Access",
+                                classes="firewall-panel-title",
                             )
 
                             yield Static(
                                 "Management interface",
-                                classes=(
-                                    "firewall-field-label"
-                                ),
+                                classes="firewall-field-label",
                             )
 
                             yield Input(
@@ -250,9 +347,7 @@ class FirewallView(NavigableView):
 
                             yield Static(
                                 "Management IPv4 CIDR",
-                                classes=(
-                                    "firewall-field-label"
-                                ),
+                                classes="firewall-field-label",
                             )
 
                             yield Input(
@@ -263,9 +358,7 @@ class FirewallView(NavigableView):
 
                             yield Static(
                                 "SSH port",
-                                classes=(
-                                    "firewall-field-label"
-                                ),
+                                classes="firewall-field-label",
                             )
 
                             yield Input(
@@ -273,185 +366,400 @@ class FirewallView(NavigableView):
                                 type="integer",
                             )
 
-                            yield Static(
-                                "Allow DHCP client replies",
-                                classes=(
-                                    "firewall-field-label"
-                                ),
-                            )
-
-                            yield SpaceSelect(
-                                YES_NO,
-                                value="yes",
-                                allow_blank=False,
-                                id="firewall-dhcp",
-                            )
-
-                            yield Static(
-                                "Allow IPv4 ICMP",
-                                classes=(
-                                    "firewall-field-label"
-                                ),
-                            )
-
-                            yield SpaceSelect(
-                                YES_NO,
-                                value="yes",
-                                allow_blank=False,
-                                id="firewall-ipv4-icmp",
-                            )
-
-                            yield Static(
-                                "Allow IPv6 ICMP",
-                                classes=(
-                                    "firewall-field-label"
-                                ),
-                            )
-
-                            yield SpaceSelect(
-                                YES_NO,
-                                value="yes",
-                                allow_blank=False,
-                                id="firewall-ipv6-icmp",
-                            )
-
                         with Vertical(
-                            id="firewall-actions-panel",
-                            classes="firewall-panel",
+                            id="firewall-trusted-panel",
+                            classes=(
+                                "firewall-panel "
+                                "firewall-access-panel"
+                            ),
                         ):
                             yield Static(
-                                "Actions",
-                                classes=(
-                                    "firewall-panel-title"
-                                ),
+                                "Trusted Networks",
+                                classes="firewall-panel-title",
                             )
 
-                            yield Button(
-                                "Preview",
-                                id="firewall-preview",
-                                variant="primary",
-                            )
-
-                            yield Button(
-                                "Apply",
-                                id="firewall-apply",
-                                disabled=True,
-                            )
-
-                            yield Button(
-                                "Reset to Live",
-                                id="firewall-reset",
-                            )
-
-                            yield Button(
-                                "Confirm Connectivity",
-                                id=(
-                                    "firewall-confirm-connectivity"
-                                ),
-                                disabled=True,
-                            )
-
-                            yield Button(
-                                "Rollback Now",
-                                id="firewall-rollback-now",
-                                disabled=True,
+                            yield Static(
+                                "",
+                                id="firewall-networks-content",
+                                markup=False,
                             )
 
                             yield Static(
                                 (
-                                    "Firewall Apply is high risk.\n\n"
-                                    "Every change arms an independent "
-                                    f"{FIREWALL_ROLLBACK_TIMEOUT_SECONDS}"
-                                    "-second rollback timer before the "
-                                    "active ruleset is changed.\n\n"
-                                    "Connectivity must be explicitly "
-                                    "confirmed to cancel rollback."
+                                    "Add / Edit / Remove "
+                                    "manager comes next."
                                 ),
-                                id="firewall-safety-note",
+                                classes="firewall-section-note",
                             )
 
-                            with VerticalScroll(
-                                id=(
-                                    "firewall-preview-scroll"
-                                )
+                    with Vertical(
+                        id="firewall-traffic-panel",
+                        classes="firewall-panel",
+                    ):
+                        yield Static(
+                            "Network Traffic",
+                            classes="firewall-panel-title",
+                        )
+
+                        with Horizontal(
+                            id="firewall-traffic-row"
+                        ):
+                            with Vertical(
+                                classes=(
+                                    "firewall-traffic-setting"
+                                ),
                             ):
                                 yield Static(
-                                    (
-                                        "Press Preview to render "
-                                        "the desired nftables "
-                                        "configuration."
+                                    "DHCP client replies",
+                                    classes=(
+                                        "firewall-field-label"
                                     ),
-                                    id=(
-                                        "firewall-preview-content"
+                                )
+
+                                yield SpaceSelect(
+                                    YES_NO,
+                                    value="yes",
+                                    allow_blank=False,
+                                    id="firewall-dhcp",
+                                )
+
+                            with Vertical(
+                                classes=(
+                                    "firewall-traffic-setting"
+                                ),
+                            ):
+                                yield Static(
+                                    "IPv4 ICMP",
+                                    classes=(
+                                        "firewall-field-label"
                                     ),
-                                    markup=False,
+                                )
+
+                                yield SpaceSelect(
+                                    YES_NO,
+                                    value="yes",
+                                    allow_blank=False,
+                                    id="firewall-ipv4-icmp",
+                                )
+
+                            with Vertical(
+                                classes=(
+                                    "firewall-traffic-setting"
+                                ),
+                            ):
+                                yield Static(
+                                    "IPv6 ICMP",
+                                    classes=(
+                                        "firewall-field-label"
+                                    ),
+                                )
+
+                                yield SpaceSelect(
+                                    YES_NO,
+                                    value="yes",
+                                    allow_blank=False,
+                                    id="firewall-ipv6-icmp",
                                 )
 
                 with VerticalScroll(
-                    id="firewall-page-inspect"
+                    id="firewall-page-rules",
+                    classes="firewall-section-page",
                 ):
-                    with Grid(
-                        id="firewall-inspect-grid"
+                    with Horizontal(
+                        id="firewall-rules-layout"
                     ):
                         with Vertical(
-                            id=(
-                                "firewall-verification-panel"
-                            ),
+                            id="firewall-rules-list-panel",
                             classes="firewall-panel",
                         ):
                             yield Static(
-                                "Verification",
-                                classes=(
-                                    "firewall-panel-title"
-                                ),
+                                "Rules & Services",
+                                classes="firewall-panel-title",
                             )
 
                             yield Static(
-                                "Waiting for backend...",
+                                (
+                                    "Inbound services allowed from "
+                                    "Trusted Networks on the "
+                                    "Management interface."
+                                ),
+                                classes="firewall-section-note",
+                            )
+
+                            yield DataTable(
+                                id="firewall-rules-table",
+                            )
+
+                            with Horizontal(
+                                id="firewall-rule-actions"
+                            ):
+                                yield Button(
+                                    "+ Add",
+                                    id="firewall-rule-add",
+                                    variant="primary",
+                                )
+
+                                yield Button(
+                                    "Edit",
+                                    id="firewall-rule-edit",
+                                    disabled=True,
+                                )
+
+                                yield Button(
+                                    "Remove",
+                                    id="firewall-rule-remove",
+                                    disabled=True,
+                                )
+
+                                yield Button(
+                                    "Enable / Disable",
+                                    id="firewall-rule-toggle",
+                                    disabled=True,
+                                )
+
+                        with Vertical(
+                            id="firewall-rule-editor"
+                        ):
+                            yield Static(
+                                "Add Service",
+                                id="firewall-rule-editor-title",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                "Name",
+                                classes="firewall-field-label",
+                            )
+
+                            yield Input(
+                                id="firewall-rule-name",
+                                placeholder="e.g. Jellyfin",
+                            )
+
+                            yield Static(
+                                "Protocol",
+                                classes="firewall-field-label",
+                            )
+
+                            yield SpaceSelect(
+                                [
+                                    ("TCP", "tcp"),
+                                    ("UDP", "udp"),
+                                ],
+                                value="tcp",
+                                allow_blank=False,
+                                id="firewall-rule-protocol",
+                            )
+
+                            yield Static(
+                                "Port",
+                                classes="firewall-field-label",
+                            )
+
+                            yield Input(
+                                id="firewall-rule-port",
+                                type="integer",
+                                placeholder="1-65535",
+                            )
+
+                            yield Static(
+                                (
+                                    "Source: Trusted Networks\n"
+                                    "Interface: Management\n"
+                                    "Action: Allow"
+                                ),
+                                id="firewall-rule-fixed-policy",
+                                markup=False,
+                            )
+
+                            with Horizontal(
+                                id="firewall-rule-editor-actions"
+                            ):
+                                yield Button(
+                                    "Save",
+                                    id="firewall-rule-save",
+                                    variant="primary",
+                                )
+
+                                yield Button(
+                                    "Cancel",
+                                    id="firewall-rule-cancel",
+                                )
+                with VerticalScroll(
+                    id="firewall-page-advanced",
+                    classes="firewall-section-page",
+                ):
+                    with Horizontal(
+                        classes="firewall-advanced-row"
+                    ):
+                        with Vertical(
+                            classes=(
+                                "firewall-panel "
+                                "firewall-advanced-panel"
+                            ),
+                        ):
+                            yield Static(
+                                "Default Policies",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                "",
+                                id="firewall-policies-content",
+                                markup=False,
+                            )
+
+                        with Vertical(
+                            classes=(
+                                "firewall-panel "
+                                "firewall-advanced-panel"
+                            ),
+                        ):
+                            yield Static(
+                                "Logging & Protection",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                (
+                                    "Drop logging, counters, "
+                                    "rate limits, and protection "
+                                    "controls will live here."
+                                ),
+                                id="firewall-logging-content",
+                                markup=False,
+                            )
+
+                    with Horizontal(
+                        classes="firewall-advanced-row"
+                    ):
+                        with Vertical(
+                            classes=(
+                                "firewall-panel "
+                                "firewall-advanced-panel"
+                            ),
+                        ):
+                            yield Static(
+                                "Diagnostics",
+                                classes="firewall-panel-title",
+                            )
+
+                            yield Static(
+                                "",
                                 id=(
                                     "firewall-verification-content"
                                 ),
+                                markup=False,
                             )
 
                         with Vertical(
-                            id=(
-                                "firewall-runtime-panel"
+                            classes=(
+                                "firewall-panel "
+                                "firewall-advanced-panel"
                             ),
-                            classes="firewall-panel",
                         ):
                             yield Static(
                                 "Runtime / Safety",
-                                classes=(
-                                    "firewall-panel-title"
-                                ),
+                                classes="firewall-panel-title",
                             )
 
                             yield Static(
-                                "Waiting for backend...",
-                                id=(
-                                    "firewall-runtime-content"
-                                ),
+                                "",
+                                id="firewall-runtime-content",
+                                markup=False,
                             )
+
+            with Vertical(
+                id="firewall-actions-panel",
+            ):
+                with Horizontal(
+                    id="firewall-change-actions"
+                ):
+                    yield Static(
+                        "Change Control",
+                        id="firewall-change-title",
+                    )
+
+                    yield Static(
+                        (
+                            "No pending apply · guarded "
+                            f"{FIREWALL_ROLLBACK_TIMEOUT_SECONDS}s "
+                            "rollback"
+                        ),
+                        id="firewall-safety-note",
+                    )
+
+                    yield Button(
+                        "Preview",
+                        id="firewall-preview",
+                        variant="primary",
+                    )
+
+                    yield Button(
+                        "Reset",
+                        id="firewall-reset",
+                    )
+
+                    yield Button(
+                        "Apply",
+                        id="firewall-apply",
+                        disabled=True,
+                    )
+
+                    yield Button(
+                        "Confirm Connectivity",
+                        id=(
+                            "firewall-confirm-connectivity"
+                        ),
+                        disabled=True,
+                    )
+
+                    yield Button(
+                        "Rollback Now",
+                        id="firewall-rollback-now",
+                        disabled=True,
+                    )
+
+                with VerticalScroll(
+                    id="firewall-preview-scroll"
+                ):
+                    yield Static(
+                        (
+                            "Press Preview to review the "
+                            "complete desired nftables "
+                            "configuration."
+                        ),
+                        id="firewall-preview-content",
+                        markup=False,
+                    )
 
     def action_show_configure(
         self,
     ) -> None:
         self._show_page(
-            "configure"
+            "access"
         )
 
     def action_show_inspect(
         self,
     ) -> None:
         self._show_page(
-            "inspect"
+            "advanced"
         )
 
     def _show_page(
         self,
         page: str,
     ) -> None:
-        self._page = page
+        pages = (
+            "overview",
+            "access",
+            "rules",
+            "advanced",
+        )
+
+        if page not in pages:
+            page = "overview"
 
         switcher = self.query_one(
             "#firewall-pages",
@@ -461,6 +769,23 @@ class FirewallView(NavigableView):
         switcher.current = (
             f"firewall-page-{page}"
         )
+
+        for name in pages:
+            button = self.query_one(
+                f"#firewall-nav-{name}",
+                Button,
+            )
+
+            if name == page:
+                button.add_class(
+                    "active-page-tab"
+                )
+            else:
+                button.remove_class(
+                    "active-page-tab"
+                )
+
+        self._page = page
 
     @staticmethod
     def _wire_value(
@@ -556,6 +881,7 @@ class FirewallView(NavigableView):
             self._draft_initialized = True
 
         self._render_current_state()
+        self._render_section_summaries()
         self._render_verification()
         self._render_runtime_state()
 
@@ -691,6 +1017,32 @@ class FirewallView(NavigableView):
                 "SSH port must be an integer."
             ) from exc
 
+        self._ensure_service_rules_loaded()
+
+        allowed_tcp_ports, allowed_udp_ports = (
+            compile_allowed_ports(
+                tuple(
+                    self._service_rules
+                )
+            )
+        )
+
+        live_values = self._values()
+
+        raw_trusted = live_values.get(
+            "trusted_ipv4_cidrs"
+        )
+
+        if raw_trusted is None:
+            raise ValueError(
+                "Trusted network state is unreadable."
+            )
+
+        trusted_ipv4_cidrs = tuple(
+            str(value)
+            for value in raw_trusted
+        )
+
         settings = FirewallSettings(
             management_interface=(
                 self.query_one(
@@ -719,6 +1071,15 @@ class FirewallView(NavigableView):
                 self._select_bool(
                     "#firewall-ipv6-icmp"
                 )
+            ),
+            trusted_ipv4_cidrs=(
+                trusted_ipv4_cidrs
+            ),
+            allowed_tcp_ports=(
+                allowed_tcp_ports
+            ),
+            allowed_udp_ports=(
+                allowed_udp_ports
             ),
         )
 
@@ -773,14 +1134,28 @@ class FirewallView(NavigableView):
     def _render_current_state(
         self,
     ) -> None:
-        target = self.query_one(
-            "#firewall-current-content",
-            Static,
-        )
-
         status_target = self.query_one(
             "#firewall-status",
             Static,
+        )
+
+        cards = (
+            self.query_one(
+                "#firewall-overview-runtime",
+                Static,
+            ),
+            self.query_one(
+                "#firewall-overview-management",
+                Static,
+            ),
+            self.query_one(
+                "#firewall-overview-traffic",
+                Static,
+            ),
+            self.query_one(
+                "#firewall-overview-policy",
+                Static,
+            ),
         )
 
         if not self._backend_online:
@@ -788,9 +1163,11 @@ class FirewallView(NavigableView):
                 "[red]OFFLINE[/red]"
             )
 
-            target.update(
-                "Backend unavailable."
-            )
+            for card in cards:
+                card.update(
+                    "Backend unavailable."
+                )
+
             return
 
         values = self._values()
@@ -806,69 +1183,875 @@ class FirewallView(NavigableView):
             raw_status
         )
 
-        lines = [
-            (
-                "nftables binary: "
-                f"{self._yes_no(values.get('nft_available'))}"
-            ),
-            (
-                "service: "
-                f"{values.get('service_active', '--')}"
-                " / "
-                f"{values.get('service_enabled', '--')}"
-            ),
-            "",
-            "Management access",
-            "-----------------",
-            (
-                "Interface: "
-                f"{values.get('management_interface', '--')}"
-            ),
-            (
-                "IPv4 CIDR: "
-                f"{values.get('management_ipv4_cidr', '--')}"
-            ),
-            (
-                "SSH port: "
-                f"{values.get('ssh_port', '--')}"
-            ),
-            "",
-            "Allowed traffic",
-            "---------------",
-            (
-                "DHCP client: "
-                f"{self._yes_no(values.get('allow_dhcp_client'))}"
-            ),
-            (
-                "IPv4 ICMP: "
-                f"{self._yes_no(values.get('allow_ipv4_icmp'))}"
-            ),
-            (
-                "IPv6 ICMP: "
-                f"{self._yes_no(values.get('allow_ipv6_icmp'))}"
-            ),
-            "",
-            "Base policy",
-            "-----------",
-            (
-                "Input DROP: "
-                f"{self._yes_no(values.get('input_policy_drop'))}"
-            ),
-            (
-                "Forward DROP: "
-                f"{self._yes_no(values.get('forward_policy_drop'))}"
-            ),
-        ]
+        trusted = (
+            values.get(
+                "trusted_ipv4_cidrs"
+            )
+            or []
+        )
 
-        target.update(
+        tcp_ports = (
+            values.get(
+                "allowed_tcp_ports"
+            )
+            or []
+        )
+
+        udp_ports = (
+            values.get(
+                "allowed_udp_ports"
+            )
+            or []
+        )
+
+        cards[0].update(
             "\n".join(
-                lines
+                [
+                    (
+                        "nftables   "
+                        + self._yes_no(
+                            values.get(
+                                "nft_available"
+                            )
+                        )
+                    ),
+                    (
+                        "Service    "
+                        + str(
+                            values.get(
+                                "service_active",
+                                "--",
+                            )
+                        )
+                    ),
+                    (
+                        "Enabled    "
+                        + str(
+                            values.get(
+                                "service_enabled",
+                                "--",
+                            )
+                        )
+                    ),
+                    (
+                        "Ruleset    "
+                        + self._yes_no(
+                            values.get(
+                                "ruleset_present"
+                            )
+                        )
+                    ),
+                ]
             )
         )
+
+        cards[1].update(
+            "\n".join(
+                [
+                    (
+                        "Interface  "
+                        + str(
+                            values.get(
+                                "management_interface",
+                                "--",
+                            )
+                        )
+                    ),
+                    (
+                        "Network    "
+                        + str(
+                            values.get(
+                                "management_ipv4_cidr",
+                                "--",
+                            )
+                        )
+                    ),
+                    (
+                        "SSH port   "
+                        + str(
+                            values.get(
+                                "ssh_port",
+                                "--",
+                            )
+                        )
+                    ),
+                    (
+                        "Trusted    "
+                        + str(
+                            len(
+                                trusted
+                            )
+                        )
+                    ),
+                ]
+            )
+        )
+
+        cards[2].update(
+            "\n".join(
+                [
+                    (
+                        "DHCP       "
+                        + self._yes_no(
+                            values.get(
+                                "allow_dhcp_client"
+                            )
+                        )
+                    ),
+                    (
+                        "IPv4 ICMP  "
+                        + self._yes_no(
+                            values.get(
+                                "allow_ipv4_icmp"
+                            )
+                        )
+                    ),
+                    (
+                        "IPv6 ICMP  "
+                        + self._yes_no(
+                            values.get(
+                                "allow_ipv6_icmp"
+                            )
+                        )
+                    ),
+                    (
+                        "Ports      "
+                        + str(
+                            len(tcp_ports)
+                            + len(udp_ports)
+                        )
+                    ),
+                ]
+            )
+        )
+
+        cards[3].update(
+            "\n".join(
+                [
+                    (
+                        "Input      "
+                        + (
+                            "DROP"
+                            if values.get(
+                                "input_policy_drop"
+                            )
+                            else "--"
+                        )
+                    ),
+                    (
+                        "Forward    "
+                        + (
+                            "DROP"
+                            if values.get(
+                                "forward_policy_drop"
+                            )
+                            else "--"
+                        )
+                    ),
+                ]
+            )
+        )
+
+    def _service_rules_from_live(
+        self,
+    ) -> tuple[
+        FirewallServiceRule,
+        ...,
+    ]:
+        values = self._values()
+
+        tcp_ports = values.get(
+            "allowed_tcp_ports"
+        )
+
+        udp_ports = values.get(
+            "allowed_udp_ports"
+        )
+
+        if (
+            tcp_ports is None
+            or udp_ports is None
+        ):
+            raise ValueError(
+                "Active service-rule state is unreadable."
+            )
+
+        current = tuple(
+            getattr(
+                self,
+                "_service_rules",
+                (),
+            )
+        )
+
+        existing = {
+            (
+                rule.protocol,
+                rule.port,
+            ): rule
+            for rule in current
+        }
+
+        generated = (
+            service_rules_from_active_ports(
+                tcp_ports=tcp_ports,
+                udp_ports=udp_ports,
+            )
+        )
+
+        preserved = []
+
+        for rule in generated:
+            old = existing.get(
+                (
+                    rule.protocol,
+                    rule.port,
+                )
+            )
+
+            if old is None:
+                preserved.append(
+                    rule
+                )
+                continue
+
+            preserved.append(
+                FirewallServiceRule(
+                    id=old.id,
+                    name=old.name,
+                    protocol=rule.protocol,
+                    port=rule.port,
+                    enabled=True,
+                )
+            )
+
+        return validate_service_rules(
+            preserved
+        )
+
+    def _ensure_service_rules_loaded(
+        self,
+    ) -> None:
+        if getattr(
+            self,
+            "_service_rules_initialized",
+            False,
+        ):
+            return
+
+        try:
+            managed = (
+                load_managed_service_rules()
+            )
+        except Exception as exc:
+            self.notify(
+                (
+                    "Stored firewall service rules "
+                    f"could not be loaded: {exc}"
+                ),
+                severity="warning",
+                timeout=6,
+            )
+
+            managed = None
+
+        try:
+            rules = (
+                managed
+                if managed is not None
+                else self._service_rules_from_live()
+            )
+        except Exception as exc:
+            self.notify(
+                (
+                    "Live firewall service rules "
+                    f"could not be read: {exc}"
+                ),
+                severity="error",
+                timeout=6,
+            )
+
+            rules = ()
+
+        self._service_rules = list(
+            rules
+        )
+
+        self._service_rules_initialized = (
+            True
+        )
+
+    def _persist_service_rules(
+        self,
+        rules: tuple[
+            FirewallServiceRule,
+            ...,
+        ],
+    ) -> None:
+        save_managed_service_rules(
+            rules
+        )
+
+        self._service_rules = list(
+            rules
+        )
+
+        self._service_rules_initialized = (
+            True
+        )
+
+    def _render_service_rules_table(
+        self,
+    ) -> None:
+        self._ensure_service_rules_loaded()
+
+        table = self.query_one(
+            "#firewall-rules-table",
+            DataTable,
+        )
+
+        if not table.columns:
+            table.add_columns(
+                "Name",
+                "Protocol",
+                "Port",
+                "Source",
+                "Enabled",
+            )
+
+        table.clear(
+            columns=False
+        )
+
+        rules = tuple(
+            self._service_rules
+        )
+
+        for rule in rules:
+            table.add_row(
+                rule.name,
+                rule.protocol.upper(),
+                str(rule.port),
+                "Trusted",
+                (
+                    "Yes"
+                    if rule.enabled
+                    else "No"
+                ),
+                key=rule.id,
+            )
+
+        has_rules = bool(
+            rules
+        )
+
+        for selector in (
+            "#firewall-rule-edit",
+            "#firewall-rule-remove",
+            "#firewall-rule-toggle",
+        ):
+            self.query_one(
+                selector,
+                Button,
+            ).disabled = not has_rules
+
+    def _selected_service_rule(
+        self,
+    ) -> FirewallServiceRule | None:
+        self._ensure_service_rules_loaded()
+
+        if not self._service_rules:
+            return None
+
+        table = self.query_one(
+            "#firewall-rules-table",
+            DataTable,
+        )
+
+        index = table.cursor_row
+
+        if (
+            index < 0
+            or index >= len(
+                self._service_rules
+            )
+        ):
+            index = 0
+
+        return self._service_rules[
+            index
+        ]
+
+    def _set_rule_editor_open(
+        self,
+        open_: bool,
+    ) -> None:
+        editor = self.query_one(
+            "#firewall-rule-editor"
+        )
+
+        editor.set_class(
+            open_,
+            "editing",
+        )
+
+    def _open_rule_editor(
+        self,
+        rule: FirewallServiceRule | None,
+    ) -> None:
+        self._editing_service_rule_id = (
+            None
+            if rule is None
+            else rule.id
+        )
+
+        self.query_one(
+            "#firewall-rule-editor-title",
+            Static,
+        ).update(
+            "Add Service"
+            if rule is None
+            else "Edit Service"
+        )
+
+        self.query_one(
+            "#firewall-rule-name",
+            Input,
+        ).value = (
+            ""
+            if rule is None
+            else rule.name
+        )
+
+        self.query_one(
+            "#firewall-rule-protocol",
+            SpaceSelect,
+        ).value = (
+            "tcp"
+            if rule is None
+            else rule.protocol
+        )
+
+        self.query_one(
+            "#firewall-rule-port",
+            Input,
+        ).value = (
+            ""
+            if rule is None
+            else str(
+                rule.port
+            )
+        )
+
+        self._set_rule_editor_open(
+            True
+        )
+
+        self.query_one(
+            "#firewall-rule-name",
+            Input,
+        ).focus()
+
+    def _close_rule_editor(
+        self,
+    ) -> None:
+        self._editing_service_rule_id = (
+            None
+        )
+
+        self._set_rule_editor_open(
+            False
+        )
+
+    def _mark_service_rules_dirty(
+        self,
+    ) -> None:
+        self._set_preview_expanded(
+            False
+        )
+
+        self.query_one(
+            "#firewall-preview-content",
+            Static,
+        ).update(
+            "Rules & Services changed.\n\n"
+            "Press Preview to review the desired "
+            "nftables configuration."
+        )
+
+        self.query_one(
+            "#firewall-apply",
+            Button,
+        ).disabled = True
+
+        self._render_service_rules_table()
+
+    def _save_rule_editor(
+        self,
+    ) -> None:
+        self._ensure_service_rules_loaded()
+
+        name = self.query_one(
+            "#firewall-rule-name",
+            Input,
+        ).value.strip()
+
+        protocol_value = self.query_one(
+            "#firewall-rule-protocol",
+            SpaceSelect,
+        ).value
+
+        protocol = str(
+            protocol_value
+        ).strip().lower()
+
+        raw_port = self.query_one(
+            "#firewall-rule-port",
+            Input,
+        ).value.strip()
+
+        try:
+            port = int(
+                raw_port
+            )
+        except ValueError:
+            self.notify(
+                "Port must be an integer.",
+                severity="error",
+                timeout=5,
+            )
+            return
+
+        editing_id = getattr(
+            self,
+            "_editing_service_rule_id",
+            None,
+        )
+
+        try:
+            if editing_id is None:
+                rule = new_service_rule(
+                    name=name,
+                    protocol=protocol,
+                    port=port,
+                )
+
+                candidate = (
+                    *self._service_rules,
+                    rule,
+                )
+
+            else:
+                old = next(
+                    (
+                        item
+                        for item in self._service_rules
+                        if item.id == editing_id
+                    ),
+                    None,
+                )
+
+                if old is None:
+                    raise ValueError(
+                        "The selected service rule "
+                        "no longer exists."
+                    )
+
+                replacement = (
+                    FirewallServiceRule(
+                        id=old.id,
+                        name=name,
+                        protocol=protocol,
+                        port=port,
+                        enabled=old.enabled,
+                    )
+                )
+
+                replacement.validate()
+
+                candidate = tuple(
+                    (
+                        replacement
+                        if item.id == editing_id
+                        else item
+                    )
+                    for item in self._service_rules
+                )
+
+            normalized = (
+                validate_service_rules(
+                    candidate
+                )
+            )
+
+            self._persist_service_rules(
+                normalized
+            )
+
+        except Exception as exc:
+            self.notify(
+                f"Could not save service rule: {exc}",
+                severity="error",
+                timeout=6,
+            )
+            return
+
+        self._close_rule_editor()
+        self._mark_service_rules_dirty()
+
+        self.notify(
+            "Service rule saved.",
+            timeout=4,
+        )
+
+    def _toggle_selected_service_rule(
+        self,
+    ) -> None:
+        rule = (
+            self._selected_service_rule()
+        )
+
+        if rule is None:
+            return
+
+        replacement = FirewallServiceRule(
+            id=rule.id,
+            name=rule.name,
+            protocol=rule.protocol,
+            port=rule.port,
+            enabled=not rule.enabled,
+        )
+
+        candidate = tuple(
+            (
+                replacement
+                if item.id == rule.id
+                else item
+            )
+            for item in self._service_rules
+        )
+
+        try:
+            self._persist_service_rules(
+                validate_service_rules(
+                    candidate
+                )
+            )
+        except Exception as exc:
+            self.notify(
+                (
+                    "Could not change service rule: "
+                    f"{exc}"
+                ),
+                severity="error",
+                timeout=6,
+            )
+            return
+
+        self._mark_service_rules_dirty()
+
+    def _request_remove_service_rule(
+        self,
+    ) -> None:
+        rule = (
+            self._selected_service_rule()
+        )
+
+        if rule is None:
+            return
+
+        self._pending_service_rule_removal = (
+            rule.id
+        )
+
+        self.app.push_screen(
+            ConfirmDialog(
+                title="Remove service rule",
+                message=(
+                    f"Remove {rule.name} "
+                    f"({rule.protocol.upper()} "
+                    f"{rule.port}) from the desired "
+                    "firewall configuration?"
+                ),
+            ),
+            self._on_service_rule_remove_confirmed,
+        )
+
+    def _on_service_rule_remove_confirmed(
+        self,
+        confirmed: bool,
+    ) -> None:
+        rule_id = getattr(
+            self,
+            "_pending_service_rule_removal",
+            None,
+        )
+
+        self._pending_service_rule_removal = (
+            None
+        )
+
+        if (
+            not confirmed
+            or rule_id is None
+        ):
+            return
+
+        candidate = tuple(
+            rule
+            for rule in self._service_rules
+            if rule.id != rule_id
+        )
+
+        try:
+            self._persist_service_rules(
+                validate_service_rules(
+                    candidate
+                )
+            )
+        except Exception as exc:
+            self.notify(
+                (
+                    "Could not remove service rule: "
+                    f"{exc}"
+                ),
+                severity="error",
+                timeout=6,
+            )
+            return
+
+        self._close_rule_editor()
+        self._mark_service_rules_dirty()
+
+        self.notify(
+            "Service rule removed.",
+            timeout=4,
+        )
+
+    def _reset_service_rules_to_live(
+        self,
+    ) -> None:
+        try:
+            rules = (
+                self._service_rules_from_live()
+            )
+
+            self._persist_service_rules(
+                rules
+            )
+
+        except Exception as exc:
+            self.notify(
+                (
+                    "Could not reset service rules "
+                    f"to live state: {exc}"
+                ),
+                severity="error",
+                timeout=6,
+            )
+            return
+
+        self._close_rule_editor()
+        self._render_service_rules_table()
+
+    def _render_section_summaries(
+        self,
+    ) -> None:
+        values = self._values()
+
+        trusted = (
+            values.get(
+                "trusted_ipv4_cidrs"
+            )
+            or []
+        )
+
+        tcp_ports = (
+            values.get(
+                "allowed_tcp_ports"
+            )
+            or []
+        )
+
+        udp_ports = (
+            values.get(
+                "allowed_udp_ports"
+            )
+            or []
+        )
+
+        networks = self.query_one(
+            "#firewall-networks-content",
+            Static,
+        )
+
+        if trusted:
+            networks.update(
+                "Current trusted networks:\n\n"
+                + "\n".join(
+                    f"  {value}"
+                    for value in trusted
+                )
+            )
+        else:
+            networks.update(
+                "No additional trusted networks."
+            )
+
+        self._ensure_service_rules_loaded()
+        self._render_service_rules_table()
+
+        policies = self.query_one(
+            "#firewall-policies-content",
+            Static,
+        )
+
+        policies.update(
+            "\n".join(
+                [
+                    (
+                        "Input DROP: "
+                        + self._yes_no(
+                            values.get(
+                                "input_policy_drop"
+                            )
+                        )
+                    ),
+                    (
+                        "Forward DROP: "
+                        + self._yes_no(
+                            values.get(
+                                "forward_policy_drop"
+                            )
+                        )
+                    ),
+                ]
+            )
+        )
+
+    def _set_preview_expanded(
+        self,
+        expanded: bool,
+    ) -> None:
+        panel = self.query_one(
+            "#firewall-actions-panel"
+        )
+
+        if expanded:
+            panel.add_class(
+                "preview-open"
+            )
+        else:
+            panel.remove_class(
+                "preview-open"
+            )
 
     def _render_preview(
         self,
     ) -> bool:
+        self._set_preview_expanded(
+            True
+        )
         target = self.query_one(
             "#firewall-preview-content",
             Static,
@@ -1039,7 +2222,11 @@ class FirewallView(NavigableView):
     def _reset_draft(
         self,
     ) -> None:
+        self._set_preview_expanded(
+            False
+        )
         self._load_live_state_into_form()
+        self._reset_service_rules_to_live()
 
         self.query_one(
             "#firewall-preview-content",
@@ -1067,6 +2254,11 @@ class FirewallView(NavigableView):
         )
 
         pending = transaction_id is not None
+
+        if pending:
+            self._set_preview_expanded(
+                False
+            )
 
         self.query_one(
             "#firewall-preview",
@@ -1266,6 +2458,24 @@ class FirewallView(NavigableView):
             )
 
             return
+
+        try:
+            save_managed_service_rules(
+                tuple(
+                    self._service_rules
+                ),
+                transaction_id=transaction.id,
+            )
+        except Exception as exc:
+            self.notify(
+                (
+                    "Firewall applied, but HomeLabCTL "
+                    "could not record firewall rule transaction: "
+                    f"{exc}"
+                ),
+                severity="warning",
+                timeout=7,
+            )
 
         self._set_pending_firewall_state(
             transaction.id
@@ -1477,6 +2687,57 @@ class FirewallView(NavigableView):
         self,
         event: Button.Pressed,
     ) -> None:
+
+        button_id = event.button.id
+
+        if button_id == "firewall-rule-add":
+            self._open_rule_editor(
+                None
+            )
+            return
+
+        if button_id == "firewall-rule-edit":
+            rule = (
+                self._selected_service_rule()
+            )
+
+            if rule is not None:
+                self._open_rule_editor(
+                    rule
+                )
+
+            return
+
+        if button_id == "firewall-rule-remove":
+            self._request_remove_service_rule()
+            return
+
+        if button_id == "firewall-rule-toggle":
+            self._toggle_selected_service_rule()
+            return
+
+        if button_id == "firewall-rule-save":
+            self._save_rule_editor()
+            return
+
+        if button_id == "firewall-rule-cancel":
+            self._close_rule_editor()
+            return
+        button_id = (
+            event.button.id
+            or ""
+        )
+
+        if button_id.startswith(
+            "firewall-nav-"
+        ):
+            self._show_page(
+                button_id.removeprefix(
+                    "firewall-nav-"
+                )
+            )
+            return
+
         button_id = (
             event.button.id
         )
