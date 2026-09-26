@@ -40,6 +40,7 @@ from homelabctl.tui.navigation import (
     SIDEBAR_TARGET,
 )
 from homelabctl.tui.screens.headless import HeadlessView
+from homelabctl.tui.screens.firewall import FirewallView
 from homelabctl.tui.screens.ssh import SSHView
 from homelabctl.tui.widgets.feature_row import (
     FeatureRow,
@@ -69,6 +70,7 @@ IMPLEMENTED_FEATURES = {
     "dashboard",
     "ssh",
     "headless",
+    "firewall",
 }
 
 
@@ -361,6 +363,9 @@ class ControlCenterScreen(Screen):
 
         elif feature_key == "headless":
             view = HeadlessView()
+
+        elif feature_key == "firewall":
+            view = FirewallView()
 
         else:
             return
@@ -851,14 +856,37 @@ class ControlCenterScreen(Screen):
             enabled=headless_available,
         )
 
+        # Firewall
+        firewall = modules.get(
+            "firewall"
+        )
+
+        firewall_available = isinstance(
+            firewall,
+            dict,
+        )
+
+        firewall_status = "--"
+
+        if firewall_available:
+            raw_status = firewall.get(
+                "status",
+                "unknown",
+            )
+
+            firewall_status = str(
+                raw_status
+            ).upper()
+
+        self._set_feature(
+            "firewall",
+            "Firewall",
+            firewall_status,
+            enabled=firewall_available,
+        )
+
         # Detection-only features
         availability = {
-            "firewall": isinstance(
-                modules.get(
-                    "firewall"
-                ),
-                dict,
-            ),
             "gateway": self._wifi_detected(
                 modules.get(
                     "network"
@@ -873,13 +901,11 @@ class ControlCenterScreen(Screen):
         }
 
         titles = {
-            "firewall": "Firewall",
             "gateway": "Gateway / Wi-Fi",
             "storage": "Storage / NAS",
         }
 
         for key in (
-            "firewall",
             "gateway",
             "storage",
         ):

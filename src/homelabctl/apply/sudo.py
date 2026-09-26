@@ -93,3 +93,26 @@ def confirm_firewall_transaction(
     )
 
     return result.returncode
+
+
+
+def rollback_firewall_transaction(
+    transaction_id: str,
+) -> int:
+    """Immediately roll back a pending firewall apply."""
+
+    result = subprocess.run(
+        [
+            "sudo",
+            (
+                "/opt/homelabctl/venv/bin/"
+                "homelabctl-apply"
+            ),
+            "--rollback-firewall",
+            transaction_id,
+        ],
+        text=True,
+        check=False,
+    )
+
+    return result.returncode

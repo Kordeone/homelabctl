@@ -10,12 +10,18 @@ from homelabctl.core.verifier import verify_module
 from homelabctl.features.firewall.inspect import (
     desired_state,
 )
+from homelabctl.features.firewall.schema import (
+    FirewallSettings,
+)
 
 
 def verify(
     actual: ModuleActualState | None,
+    settings: FirewallSettings | None = None,
 ) -> VerificationReport:
     return verify_module(
-        desired_state(),
+        desired_state(
+            settings
+        ),
         actual,
     )

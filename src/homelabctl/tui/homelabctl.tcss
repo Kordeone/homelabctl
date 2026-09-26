@@ -2769,3 +2769,266 @@ ControlCenterScreen.tiny-ui #headless-gdm-grid {
 }
 
 /* === END HEADLESS PREVIEW SCROLL REPAIR === */
+
+
+/* =========================================================
+   FIREWALL VIEW
+   ========================================================= */
+
+#firewall-view,
+#firewall-root {
+    width: 100%;
+    height: 100%;
+}
+
+#firewall-feature-header {
+    width: 100%;
+    height: 4;
+    padding: 0 1;
+}
+
+#firewall-title {
+    width: 1fr;
+    height: 3;
+    content-align: left middle;
+    text-style: bold;
+}
+
+#firewall-status {
+    width: 16;
+    height: 3;
+    content-align: right middle;
+    text-style: bold;
+}
+
+#firewall-page-selector {
+    width: 100%;
+    height: 4;
+    padding: 0 1;
+}
+
+.firewall-page-tab {
+    width: 18;
+    min-width: 14;
+    height: 3;
+    margin-right: 1;
+}
+
+#firewall-pages {
+    width: 100%;
+    height: 1fr;
+}
+
+#firewall-page-configure,
+#firewall-page-inspect {
+    width: 100%;
+    height: 100%;
+    padding: 0 1 1 1;
+}
+
+#firewall-configure-grid {
+    width: 100%;
+    height: 100%;
+
+    layout: grid;
+
+    grid-size: 3 1;
+    grid-columns:
+        0.9fr
+        1.1fr
+        1fr;
+
+    grid-rows: 1fr;
+    grid-gutter: 0 1;
+}
+
+#firewall-inspect-grid {
+    width: 100%;
+    height: 100%;
+
+    layout: grid;
+
+    grid-size: 2 1;
+    grid-columns:
+        1.2fr
+        0.8fr;
+
+    grid-rows: 1fr;
+    grid-gutter: 0 1;
+}
+
+.firewall-panel {
+    width: 100%;
+    height: 100%;
+
+    padding: 1;
+
+    background: #0e1214;
+    border: round #274854;
+}
+
+.firewall-panel-title {
+    width: 100%;
+    height: 3;
+
+    text-style: bold;
+    content-align: left middle;
+}
+
+.firewall-field-label {
+    width: 100%;
+    height: 2;
+    margin-top: 1;
+}
+
+#firewall-policy-panel Input,
+#firewall-policy-panel SpaceSelect {
+    width: 100%;
+}
+
+#firewall-actions-panel Button {
+    width: 100%;
+    height: 3;
+    margin-bottom: 1;
+}
+
+#firewall-safety-note {
+    width: 100%;
+    height: auto;
+    min-height: 7;
+
+    margin-top: 1;
+    padding: 1;
+
+    color: #e7c76d;
+    background: #181711;
+    border: round #6a5a23;
+}
+
+#firewall-preview-scroll {
+    width: 100%;
+    height: 1fr;
+
+    margin-top: 1;
+    padding-top: 1;
+
+    border-top: solid #274854;
+    overflow-y: auto;
+}
+
+#firewall-preview-content {
+    width: 100%;
+    height: auto;
+    min-height: 1;
+
+    overflow-x: hidden;
+    overflow-y: hidden;
+}
+
+#firewall-current-content,
+#firewall-verification-content,
+#firewall-runtime-content {
+    width: 100%;
+    height: 1fr;
+    overflow-y: auto;
+}
+
+#firewall-preview {
+    color: #ffffff;
+    background: #075d7c;
+    border: round #20d3f3;
+    text-style: bold;
+}
+
+#firewall-preview:focus {
+    background: #078ab5;
+    border: round #7beaff;
+}
+
+#firewall-reset {
+    color: #ffffff;
+    background: #202020;
+    border: round #4d4d4d;
+}
+
+#firewall-reset:focus {
+    color: #101010;
+    background: #d6a315;
+    border: round #f3cb5f;
+}
+
+ControlCenterScreen.compact-ui #firewall-configure-grid,
+ControlCenterScreen.tiny-ui #firewall-configure-grid {
+    height: auto;
+
+    grid-size: 1 3;
+    grid-columns: 1fr;
+    grid-rows:
+        auto
+        auto
+        auto;
+
+    grid-gutter: 1 0;
+}
+
+ControlCenterScreen.compact-ui #firewall-inspect-grid,
+ControlCenterScreen.tiny-ui #firewall-inspect-grid {
+    height: auto;
+
+    grid-size: 1 2;
+    grid-columns: 1fr;
+    grid-rows:
+        auto
+        auto;
+
+    grid-gutter: 1 0;
+}
+
+ControlCenterScreen.compact-ui .firewall-panel,
+ControlCenterScreen.tiny-ui .firewall-panel {
+    height: auto;
+    min-height: 14;
+}
+
+/* =========================================================
+   END FIREWALL VIEW
+   ========================================================= */
+
+
+/* Firewall safe-apply controls */
+
+#firewall-apply {
+    color: #ffffff;
+    background: #202020;
+    border: round #4d4d4d;
+}
+
+#firewall-apply:focus {
+    color: #ffffff;
+    background: #7a4d00;
+    border: round #f0ad35;
+}
+
+#firewall-confirm-connectivity {
+    color: #ffffff;
+    background: #173d24;
+    border: round #358852;
+}
+
+#firewall-confirm-connectivity:focus {
+    color: #ffffff;
+    background: #246a3b;
+    border: round #62d784;
+}
+
+#firewall-rollback-now {
+    color: #ffffff;
+    background: #4b2020;
+    border: round #954444;
+}
+
+#firewall-rollback-now:focus {
+    color: #ffffff;
+    background: #7b2929;
+    border: round #ef6262;
+}
